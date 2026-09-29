@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+**/.venv/
+
+# Local inference artifacts and runtime output
+models/
+demo/out/
+
+# Local evaluation outputs
+evaluate_report.json

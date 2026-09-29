@@ -1,0 +1,124 @@
+{
+  "items": [
+    {
+      "id": "formula",
+      "file": "dense-equations.jpg",
+      "title": "密排公式",
+      "en": "Dense Math Formulas",
+      "desc": "论文式密排公式截图 · 不等式与多行推导",
+      "task": "document",
+      "badge": "FORMULA",
+      "max_tokens": 2048,
+      "image": "/example_pics/dense-equations.jpg",
+      "result": "We then define the following variables: \\(\\mathbf{P}_i^j = \\prod_{t=i}^{j} (\\mathbf{I} - \\beta_t \\boldsymbol{k}_t \\boldsymbol{k}_t^\\top) \\in \\mathbb{R}^{d \\times d}\\), \\(\\mathbf{H}_i^j = \\sum_{t=i}^{j} \\beta_t (\\boldsymbol{v}_t \\boldsymbol{k}_t^\\top) \\mathbf{P}_{t+1}^j \\in \\mathbb{R}^{d \\times d}\\), where we let \\(\\mathbf{P}_i^j = \\mathbf{I}\\) whenever \\(i > j\\). Intuitively, \\(\\mathbf{P}_i^j\\) is the “decay factor” to be applied to \\(\\mathbf{S}_i\\) for obtaining \\(\\mathbf{S}_j\\), and \\(\\mathbf{H}_i^j\\) represents the contributions to \\(\\mathbf{S}_j\\) starting from token \\(i\\). (Hence \\(\\mathbf{S}_t = \\mathbf{H}_1^t\\)). The chunkwise recurrence can then be written as,\n\n\\[\\mathbf {S} _ {[ t ]} ^ {r} = \\mathbf {S} _ {[ t ]} ^ {0} \\mathbf {P} _ {[ t ]} ^ {r} + \\mathbf {H} _ {[ t ]} ^ {r} \\tag{5}\\]\n\nwhere we define the chunkwise variables \\(\\mathbf{S}_{[t]}^{i} = \\mathbf{S}_{tC + i}\\), \\(\\mathbf{P}_{[t]}^{r} = \\mathbf{P}_{tC + 1}^{tC + r}\\), \\(\\mathbf{H}_{[t]}^{r} = \\mathbf{H}_{tC + 1}^{tC + r}\\). Here we have \\(\\frac{L}{C}\\) chunks of size \\(C\\). The trick is to now efficiently represent the \\(\\mathbf{P}_{[t]}^{r}, \\mathbf{H}_{[t]}^{r} \\in \\mathbb{R}^{d \\times d}\\) matrices using a similar approach described in §3.1, so that these matrices can be stored in \\(\\mathcal{O}(d)\\) memory,\n\n\\[\\mathbf {P} _ {[ t ]} ^ {r} = \\mathbf {I} - \\sum_ {i = 1} ^ {r} \\boldsymbol {w} _ {[ t ]} ^ {i} \\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}}, \\quad \\mathbf {H} _ {[ t ]} ^ {r} = \\sum_ {i = 1} ^ {r} \\boldsymbol {u} _ {[ t ]} ^ {i} \\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}} \\quad \\in \\mathbb {R} ^ {d \\times d} \\tag{6}\\]\n\n\\[\\boldsymbol {w} _ {[ t ]} ^ {r} = \\beta_ {[ t ]} ^ {r} \\left(\\boldsymbol {k} _ {[ t ]} ^ {r} - \\sum_ {i = 1} ^ {r - 1} \\boldsymbol {w} _ {[ t ]} ^ {i} (\\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}} \\boldsymbol {k} _ {[ t ]} ^ {r})\\right), \\quad \\boldsymbol {u} _ {[ t ]} ^ {r} = \\beta_ {[ t ]} ^ {r} \\left(\\boldsymbol {v} _ {[ t ]} ^ {r} - \\sum_ {i = 1} ^ {r - 1} \\boldsymbol {u} _ {[ t ]} ^ {i} (\\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}} \\boldsymbol {k} _ {[ t ]} ^ {r})\\right) \\in \\mathbb {R} ^ {d} \\tag{7}\\]\n\nThe derivations for the above can be found in the appendix. Subsequently, based on Eq. 5, we can obtain the chunk-level recurrence for hidden states and outputs as,\n\n\\[\\mathbf {S} _ {[ t ]} ^ {r} = \\mathbf {S} _ {[ t ]} ^ {0} - \\left(\\mathbf {S} _ {[ t ]} ^ {0} \\sum_ {i = 1} ^ {r} \\boldsymbol {w} _ {[ t ]} ^ {i} \\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}}\\right) + \\sum_ {i = 1} ^ {r} \\boldsymbol {u} _ {[ t ]} ^ {i} \\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}} = \\mathbf {S} _ {[ t ]} ^ {0} + \\sum_ {i = 1} ^ {r} \\left(\\boldsymbol {u} _ {[ t ]} ^ {i} - \\mathbf {S} _ {[ t ]} ^ {0} \\boldsymbol {w} _ {[ t ]} ^ {i}\\right) \\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}},\\]\n\n\\[\\boldsymbol {o} _ {[ t ]} ^ {r} = \\mathbf {S} _ {[ t ]} ^ {r} \\boldsymbol {q} _ {[ t ]} ^ {r} = \\mathbf {S} _ {[ t ]} ^ {0} \\boldsymbol {q} _ {[ t ]} ^ {r} + \\sum_ {i = 1} ^ {r} \\left(\\boldsymbol {u} _ {[ t ]} ^ {i} - \\mathbf {S} _ {[ t ]} ^ {0} \\boldsymbol {w} _ {[ t ]} ^ {i}\\right) \\left(\\boldsymbol {k} _ {[ t ]} ^ {i ^ {\\top}} \\boldsymbol {q} _ {[ t ]} ^ {i}\\right).\\]\n\nLetting \\(\\mathbf{S}_{[t]} = \\mathbf{S}_{[t]}^{0}\\), the above can be simplified to matrix notations similarly to Eq.1-2,\n\n\\[\\mathbf {S} _ {[ t + 1 ]} = \\mathbf {S} _ {[ t ]} + \\left(\\mathbf {U} _ {[ t ]} - \\mathbf {W} _ {[ t ]} \\mathbf {S} _ {[ t ]} ^ {\\top}\\right) ^ {\\top} \\mathbf {K} _ {[ t ]}, \\tag{8}\\]\n\n\\[\\mathbf {O} _ {[ t ]} = \\mathbf {Q} _ {[ t ]} \\mathbf {S} _ {[ t ]} ^ {\\top} + (\\mathbf {Q} _ {[ t ]} \\mathbf {K} _ {[ t ]} ^ {\\top} \\odot \\mathbf {M}) (\\mathbf {U} _ {[ t ]} - \\mathbf {W} _ {[ t ]} \\mathbf {S} _ {[ t ]} ^ {\\top}) \\tag{9}\\]\n\nwhere \\(\\square_{[t]} = \\square_{[t]}^{1:C} \\in \\mathbb{R}^{C \\times d}\\) for \\(\\square \\in \\{\\mathbf{Q}, \\mathbf{K}, \\mathbf{V}, \\mathbf{O}, \\mathbf{U}, \\mathbf{W}\\}\\) defines the chunkwise matrices that are formed from stacking the \\(q_t, k_t, v_t, o_t, u_t, w_t\\) vectors.\n\nPractical considerations. In the above, Eq. 7 is fully recurrent and thus cannot use tensor cores written as is. To solve this, we further leverage the UT transform [44, 23] (see §B.2 for derivations):\n\n\\[\\mathbf {T} _ {[ t ]} = \\left(\\mathbf {I} + \\operatorname{tril} (\\operatorname{diag} (\\beta_ {[ t ]}) \\mathbf {K} _ {[ t ]} \\mathbf {K} _ {[ t ]} ^ {\\top}, - 1)\\right) ^ {- 1} \\operatorname{diag} \\left(\\beta_ {[ t ]}\\right) \\tag{10}\\]\n\n\\[\\mathbf {W} _ {[ t ]} = \\mathbf {T} _ {[ t ]} \\mathbf {K} _ {[ t ]}, \\quad \\mathbf {U} _ {[ t ]} = \\mathbf {T} _ {[ t ]} \\mathbf {V} _ {[ t ]} \\tag{11}\\]",
+      "latency_ms": 5027,
+      "usage": {
+        "prompt_tokens": 2368,
+        "total_tokens": 4385,
+        "completion_tokens": 2017,
+        "prompt_tokens_details": null
+      },
+      "ok": true
+    },
+    {
+      "id": "handwriting",
+      "file": "showcase_handwriting.png",
+      "title": "手写笔记",
+      "en": "Handwritten Notes",
+      "desc": "研究笔记手写体 · 中英混排",
+      "task": "document",
+      "badge": "HANDWRITING",
+      "max_tokens": 2048,
+      "image": "/samples/showcase/showcase_handwriting.png",
+      "result": "Research Notes — 2026.03.12\n\nQwen3.5-0.8B post-train recipe (ckpt-139k)\n\n1) Q-Mask text-anchoring first spatial grounding\n\n2) mixCPT on doc-region corpus (170M-ish)\n\n3) GRPO with composite reward:\n\ntext: 1 - NED\n\ntable: TEDS / TEDS-S\n\nformula: CDM\n\n4) MOPD 3x4B teachers student\n\nTODO: verify OTSLHTML converter on nested tables\n\nNOTE: region crop beats full-page on dense papers",
+      "latency_ms": 605,
+      "usage": {
+        "prompt_tokens": 1692,
+        "total_tokens": 1827,
+        "completion_tokens": 135,
+        "prompt_tokens_details": null
+      },
+      "ok": true
+    },
+    {
+      "id": "calligraphy",
+      "file": "showcase_calligraphy.jpg",
+      "title": "书法 · 道德经",
+      "en": "Daodejing Calligraphy",
+      "desc": "赵孟頫 · 行楷 · 竖排右起 · 落款印章",
+      "task": "document",
+      "badge": "CALLIGRAPHY",
+      "max_tokens": 1024,
+      "image": "/samples/showcase/showcase_calligraphy.jpg",
+      "result": "既以與人已愈多天之道利而不害人之道為而不争\n\n老子終\n\n延祐三年歲在丙辰三月廿四五日為進之高士書于松雪齋\n\n孟頫",
+      "latency_ms": 358,
+      "usage": {
+        "prompt_tokens": 562,
+        "total_tokens": 608,
+        "completion_tokens": 46,
+        "prompt_tokens_details": null
+      },
+      "ok": true
+    },
+    {
+      "id": "dense",
+      "file": "showcase_dense.png",
+      "title": "密集论文页",
+      "en": "Dense Academic Page",
+      "desc": "正文 + LaTeX 公式 + 表格混排",
+      "task": "document",
+      "badge": "MIXED LAYOUT",
+      "max_tokens": 3072,
+      "image": "/samples/showcase/showcase_dense.png",
+      "result": "## 3. Multi Factor Sample Mining\n\nFor each region sample we compute three orthogonal signals: annotation reliability a i, inference difficulty c i, and semantic cluster index k(i). Hard samples target high a i and low c i under a two stage cluster based sampling scheme.\n\n## Sampling probability:\n\n\\[P _ {i} = \\text { softmax } ((f _ {a} \\log (a _ {i} + e p s) + f _ {c} \\log (1 - c _ {i} + e p s)) / T)\\]\n\nTable 2. Reward components used in RL.\n\n<fcel>Component<fcel>Score<fcel>Aspect<fcel>Weight<nl><fcel>Text<fcel>1 NED<fcel>Text fidelity<fcel>w text<nl><fcel>Formula<fcel>CDM<fcel>Visual match<fcel>w formula<nl><fcel>Table<fcel>TEDS<fcel>Content topo<fcel>w table<nl><fcel>Table struct<fcel>TEDS S<fcel>Topology only<fcel>ω<nl>\n\nWe adopt a length penalty that zeros the reward for overlong predictions. CDM ground truth rendering is cached by content hash, skipping 87% of repeated LaTeX to bbox work with 8 rollouts per prompt. Complexity buckets group long outputs into low concurrency batches to avoid rollout timeouts.",
+      "latency_ms": 1034,
+      "usage": {
+        "prompt_tokens": 2286,
+        "total_tokens": 2581,
+        "completion_tokens": 295,
+        "prompt_tokens_details": null
+      },
+      "ok": true
+    },
+    {
+      "id": "invoice",
+      "file": "showcase_invoice.png",
+      "title": "倾斜发票",
+      "en": "Skewed Invoice",
+      "desc": "拍摄倾斜 · 字段密集的发票",
+      "task": "document",
+      "badge": "KIE-READY",
+      "max_tokens": 2048,
+      "image": "/samples/showcase/showcase_invoice.png",
+      "result": "# 增值税普通发票 INVOICE\n\n发票代码 044001900211\n\n发票号码 20318567\n\n开票日期 2026-03-12\n\n购买方 小米科技有限责任公司\n\n纳税人识别号 91110108551385082Q\n\n销售方 北京某某供应链有限公司\n\n金额（小写） ¥128,450.00\n\n价税合计 壹拾贰万捌仟肆佰伍拾元整\n\n税率 13%\n\n校验码 07288 31590 22644 10935\n\n收款人：王敏 复核：李强 开票人：张涛",
+      "latency_ms": 609,
+      "usage": {
+        "prompt_tokens": 1152,
+        "total_tokens": 1322,
+        "completion_tokens": 170,
+        "prompt_tokens_details": null
+      },
+      "ok": true
+    },
+    {
+      "id": "whiteboard",
+      "file": "showcase_whiteboard.png",
+      "title": "白板拍照",
+      "en": "Whiteboard Photo",
+      "desc": "场景照片 · 反光与倾斜",
+      "task": "document",
+      "badge": "IN-THE-WILD",
+      "max_tokens": 1536,
+      "image": "/samples/showcase/showcase_whiteboard.png",
+      "result": "## OCR Pipeline Design\n\n- image layout detect (PP-DocLayoutV3)\n\n- region crop\n\n- VLM recognize (qwen35-0p8b-ocr)\n\n- OTSL / LATEX / markdown\n\n- downstream convert\n\nVLM 0.8B\n\nreward / RL",
+      "latency_ms": 352,
+      "usage": {
+        "prompt_tokens": 1498,
+        "total_tokens": 1564,
+        "completion_tokens": 66,
+        "prompt_tokens_details": null
+      },
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Xiaomi OCR Skill — local MCP runtime requirements
+# Install into the Skill's private virtual environment:
+#   python -m pip install -r requirements.txt
+# Verify:
+#   python -c "import PIL, pypdfium2; print('deps ok')"
+
+Pillow>=7.0        # required by all image/PDF OCR tools
+pypdfium2>=4.0     # PDF rasterisation (ocr_pdf)

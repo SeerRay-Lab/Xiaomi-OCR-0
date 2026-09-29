@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "xiaomi-ocr": {
+      "command": "/absolute/path/to/installed/skills/xiaomi-ocr/.venv/bin/python",
+      "args": [
+        "/absolute/path/to/installed/skills/xiaomi-ocr/mcp_ocr_server.py"
+      ],
+      "env": {
+        "XIAOMI_OCR_LOCAL_URL": "http://127.0.0.1:8000/v1",
+        "XIAOMI_OCR_MODEL": "SeerRay-Lab/Xiaomi-OCR-0"
+      }
+    }
+  }
+}
