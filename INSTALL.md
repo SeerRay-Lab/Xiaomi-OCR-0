@@ -44,12 +44,12 @@ listener bound to `127.0.0.1`.
 
 ```bash
 cd skills/xiaomi-ocr
-bash install.sh
+bash install.sh --agent=codex
 ```
 
 After the user authorizes this step, the installer creates a private Python environment,
-downloads Pillow and pypdfium2, and writes `mcp-config.json`. On Codex it also registers the
-MCP server while preserving other entries. Other agents need this entry merged into their
+installs the packages in `skills/xiaomi-ocr/requirements.txt`, and writes `mcp-config.json`. With `--agent=codex` it also registers the
+MCP server while preserving other entries. For other agents, omit `--agent=codex`; merge this entry into their
 own MCP configuration, then restarted. If the local model runs on another port, set
 `XIAOMI_OCR_LOCAL_URL` before running the installer, for example
 `http://127.0.0.1:8001/v1`.
@@ -74,6 +74,13 @@ or irregular layouts: an incorrect region split can lose context and compound er
 - `vqa_image`: answer a question about the document image.
 
 Image/PDF preprocessing, prompts, layout handling, concurrency, and output formatting stay
-inside the MCP tools. See [`skills/xiaomi-ocr/SKILL.md`](skills/xiaomi-ocr/SKILL.md) for the
+inside the MCP tools. Model prompts request OTSL; the tools convert tables into HTML within Markdown.
+Set `XIAOMI_OCR_LAYOUT_MODEL_DIR` to reuse PaddleX-format layout weights and
+`XIAOMI_OCR_LAYOUT_DEVICE` to select the layout device. These variables belong in the MCP environment
+(or the Demo process environment). See [`skills/xiaomi-ocr/SKILL.md`](skills/xiaomi-ocr/SKILL.md) for the
 agent workflow and [`skills/xiaomi-ocr/scripts/otsl_convert.py`](skills/xiaomi-ocr/scripts/otsl_convert.py)
-for rendering OTSL tables.
+for optional offline conversion; it is not a required agent step.
+
+## Batch evaluation
+
+The restored [pipeline commands](pipeline/README.md) and [postprocessing modules](postprocess/README.md) share the document assembly used by MCP and the Demo. Install `requirements.txt` for batch inference.

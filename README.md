@@ -20,7 +20,7 @@ cd Xiaomi-OCR-0
 
 ## What it does
 
-- **Document parsing:** reads document pages and produces structured Markdown, with tables in OTSL and formulas in LaTeX.
+- **Document parsing:** reads document pages and produces structured Markdown, with OTSL model outputs converted to HTML tables in Markdown and formulas in LaTeX.
 - **Key information extraction (KIE):** extracts requested fields as JSON.
 - **OCR-centric visual question answering (VQA):** answers questions about text and content in document images.
 - **Local agent tools:** an MCP service handles prompts, PDF/image preparation, optional region detection, parallel crop inference, and output assembly.
@@ -58,7 +58,7 @@ Run **one** of the following commands in a terminal. On first launch, the runtim
 SGLang:
 
 ```bash
-sglang serve --model-path SeerRay-Lab/Xiaomi-OCR-0 \
+python -m sglang.launch_server --model-path SeerRay-Lab/Xiaomi-OCR-0 \
   --host 127.0.0.1 --port 8000 --context-length 16384
 ```
 
@@ -76,11 +76,11 @@ Wait for the server to finish loading the model before continuing.
 Open a second terminal in the repository directory and run:
 
 ```bash
-python3 -m pip install Pillow
+python3 -m pip install -r requirements.txt
 python3 demo/server.py --port 8787
 ```
 
-Open <http://127.0.0.1:8787>. The same browser page supports whole-page/region document parsing, KIE, VQA, and PDF parsing. The demo needs Pillow; PDF input additionally needs `pypdfium2`. Region mode optionally needs PaddlePaddle/PaddleX and PP-DocLayoutV3 weights. See [demo/README.md](demo/README.md) for dependencies and [INSTALL.md](INSTALL.md) for MCP setup.
+Open <http://127.0.0.1:8787>. The same browser page supports whole-page/region document parsing, KIE, VQA, and PDF parsing. Install the shared requirements above, including Pillow and `pypdfium2` for images and PDFs. Region mode optionally needs PaddlePaddle/PaddleX and PP-DocLayoutV3 weights. See [demo/README.md](demo/README.md) for dependencies and [INSTALL.md](INSTALL.md) for MCP setup.
 
 ## Repository contents
 
@@ -88,6 +88,8 @@ Open <http://127.0.0.1:8787>. The same browser page supports whole-page/region d
 |:--|:--|
 | [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill and MCP service for OCR, PDF parsing, KIE, and VQA |
 | [`demo/`](demo/) | Local browser demo and sample cases |
+| [`pipeline/`](pipeline/) | Whole-page and region batch inference |
+| [`postprocess/`](postprocess/) | Shared table conversion, formula/text assembly and repetition handling |
 | [`workflows/`](workflows/) | Evaluation utilities |
 | [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
 | [Hugging Face Space](https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0/tree/main) | Space assets and project-page source |

@@ -21,11 +21,18 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+# A standalone Skill installation must point at a complete repository checkout.
+REPO_ROOT = Path(os.environ.get("XIAOMI_OCR_REPO", Path(__file__).resolve().parents[2])).expanduser()
+sys.path.insert(0, str(REPO_ROOT))
+from postprocess.document import finalize_document
+from postprocess.region import merge_page_to_markdown
+from postprocess.otsl import convert_otsl_to_html
+
 OCR_BASE = os.environ.get("XIAOMI_OCR_LOCAL_URL", "http://127.0.0.1:8000/v1").strip().rstrip("/")
 OCR_MODEL = os.environ.get("XIAOMI_OCR_MODEL", "SeerRay-Lab/Xiaomi-OCR-0").strip()
 MAX_TOKENS = int(os.environ.get("XIAOMI_OCR_MAX_TOKENS", "16384"))
 CONCURRENCY = max(1, min(int(os.environ.get("XIAOMI_OCR_CONCURRENCY", "8")), 32))
-LAYOUT_THRESHOLD = float(os.environ.get("XIAOMI_OCR_LAYOUT_THRESHOLD", "0.5"))
+LAYOUT_THRESHOLD = float(os.environ.get("XIAOMI_OCR_LAYOUT_THRESHOLD", "0.3"))
 
 PROMPTS = {
     "document": (
@@ -50,12 +57,13 @@ LABEL_MAP = {
 REGION_MAX_TOKENS = {"title": 256, "text": 1024, "table": 2048, "formula": 512, "figure": 256}
 
 
-def _local_url() -> str:
+def _local_url(base: str | None = None) -> str:
     """Refuse non-loopback inference endpoints: model requests must stay on this machine."""
-    parsed = urllib.parse.urlparse(OCR_BASE)
+    base = (base or OCR_BASE).rstrip("/")
+    parsed = urllib.parse.urlparse(base)
     if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
         raise RuntimeError("XIAOMI_OCR_LOCAL_URL must point to a local http://127.0.0.1 inference server")
-    return OCR_BASE
+    return base
 
 
 def _http_json(url: str, payload: dict, timeout: int = 300) -> dict:
@@ -71,18 +79,24 @@ def _http_json(url: str, payload: dict, timeout: int = 300) -> dict:
         raise RuntimeError(f"Local model is unavailable at {_local_url()}: {e.reason}. Start SGLang or vLLM first.") from e
 
 
-def _chat(image: bytes, prompt: str, max_tokens: int) -> dict:
-    url = _local_url() + "/chat/completions"
+def _chat(image: bytes, prompt: str, max_tokens: int, *, model_url: str | None = None, model: str | None = None) -> dict:
+    url = _local_url(model_url) + "/chat/completions"
     encoded = base64.b64encode(image).decode()
-    payload = {"model": OCR_MODEL, "messages": [{"role": "user", "content": [
+    payload = {"model": model or OCR_MODEL, "messages": [{"role": "user", "content": [
         {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
         {"type": "text", "text": prompt},
-    ]}], "max_tokens": max_tokens, "temperature": 0}
+    ]}], "max_tokens": max_tokens, "temperature": 0, "top_p": 0.8, "presence_penalty": 0.0, "repetition_penalty": 1.0,
+        "chat_template_kwargs": {"enable_thinking": False}}
     data = _http_json(url, payload)
     message = data["choices"][0]["message"]["content"]
     if isinstance(message, list):
         message = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in message)
-    return {"text": str(message or "").strip(), "usage": data.get("usage") or {}}
+    text = str(message or "").strip()
+    if not text:
+        raise RuntimeError("Local model returned an empty response")
+    if data["choices"][0].get("finish_reason") == "length":
+        raise RuntimeError("Model output was truncated; increase the output/context budget or use smaller inputs")
+    return {"text": text, "usage": data.get("usage") or {}}
 
 
 def _read_bytes(path: str | None, url: str | None, b64: str | None, kind: str) -> bytes:
@@ -122,42 +136,41 @@ def _layout_regions(png: bytes) -> list[dict]:
         from PIL import Image
     except ImportError as exc:
         raise RuntimeError("Region mode needs PaddleX/PaddlePaddle installed in this environment; install the PP-DocLayoutV3 runtime described in the Skill.") from exc
+    from pipeline.layout_detect_paddlex import serialize_regions
     img = Image.open(io.BytesIO(png)).convert("RGB")
-    w, h = img.size
-    scale = min(1.0, 1600 / max(w, h))
-    if scale < 1:
-        img = img.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.Resampling.LANCZOS)
     global _LAYOUT_MODEL
-    # Keep model initialization and inference serialized; PaddleX predictor instances
-    # are not assumed to be thread-safe when PDF pages are processed concurrently.
     with _LAYOUT_LOCK:
         if _LAYOUT_MODEL is None:
-            _LAYOUT_MODEL = pdx.create_model("PP-DocLayoutV3")
+            options = {"threshold": LAYOUT_THRESHOLD}
+            if os.environ.get("XIAOMI_OCR_LAYOUT_MODEL_DIR"):
+                options["model_dir"] = os.environ["XIAOMI_OCR_LAYOUT_MODEL_DIR"]
+            if os.environ.get("XIAOMI_OCR_LAYOUT_DEVICE"):
+                options["device"] = os.environ["XIAOMI_OCR_LAYOUT_DEVICE"]
+            _LAYOUT_MODEL = pdx.create_model("PP-DocLayoutV3", **options)
         result = list(_LAYOUT_MODEL.predict(np.asarray(img)))[0]
-    regions = []
-    for box in result.get("boxes", []):
-        if float(box.get("score", 0)) < LAYOUT_THRESHOLD:
-            continue
-        x1, y1, x2, y2 = box["coordinate"]
-        regions.append({"box": [round(float(v) / scale) for v in (x1, y1, x2, y2)],
-                        "cls": str(box.get("label", "text")).lower(), "score": float(box["score"])})
-    regions.sort(key=lambda r: (round(r["box"][1] / 40), r["box"][0]))
-    return regions
+    # Preserve the detector's reading order; do not sort columns by y/x.
+    return serialize_regions(result, *img.size)
 
 
 _LAYOUT_MODEL = None
 _LAYOUT_LOCK = threading.Lock()
 
 
-def _crop(image, box: list[float], pad: int = 4) -> bytes:
-    w, h = image.size
-    x1, y1, x2, y2 = (int(v) for v in box)
-    x1, y1, x2, y2 = max(0, x1-pad), max(0, y1-pad), min(w, x2+pad), min(h, y2+pad)
-    if x2 <= x1 or y2 <= y1:
-        return b""
+def _crop(image, box: list[float], polygon=None) -> bytes:
+    from pipeline.cropping import crop_region
+    crop = crop_region(image, box, polygon=polygon)
     out = io.BytesIO()
-    image.crop((x1, y1, x2, y2)).save(out, format="PNG")
+    crop.save(out, format="PNG")
     return out.getvalue()
+
+
+def assemble_regions(regions: list[dict], texts: list[str]) -> str:
+    rows = []
+    for region, text in zip(regions, texts):
+        if region.get("task_type") == "table":
+            text = convert_otsl_to_html(text)
+        rows.append({**region, "merged": text})
+    return merge_page_to_markdown(rows)
 
 
 def ocr_image(image_path: str | None = None, image_url: str | None = None,
@@ -167,42 +180,30 @@ def ocr_image(image_path: str | None = None, image_url: str | None = None,
     png = _image_png(_read_bytes(image_path, image_url, image_base64, "image"))
     if mode == "page":
         result = _chat(png, PROMPTS["document"], max_tokens)
-        return {"mode": "page", "markdown": result["text"], "usage": result["usage"]}
+        return {"mode": "page", "markdown": finalize_document(result["text"]), "usage": result["usage"]}
 
     from PIL import Image
     page = Image.open(io.BytesIO(png)).convert("RGB")
     regions = _layout_regions(png)
+    regions = [r for r in regions if r.get("task_type") not in {"skip", "abandon"}]
     if not regions:
         result = _chat(png, PROMPTS["document"], max_tokens)
-        return {"mode": "page_fallback", "reason": "layout returned no usable regions", "markdown": result["text"]}
-    jobs = []
-    for region in regions:
-        cls = LABEL_MAP.get(region["cls"], "text")
-        prompt = PROMPTS["formula" if cls == "formula" else "table" if cls == "table" else "text"]
-        crop = _crop(page, region["box"])
-        if crop:
-            jobs.append((crop, prompt, cls, region))
-
-    results: list[str] = [""] * len(jobs)
+        return {"mode": "page_fallback", "reason": "layout returned no usable regions", "markdown": finalize_document(result["text"])}
+    regions = [r for r in regions if r.get("task_type") not in {"skip", "abandon"}]
+    results = [""] * len(regions)
     def run(i: int):
-        crop, prompt, cls, _ = jobs[i]
-        return i, _chat(crop, prompt, min(max_tokens, REGION_MAX_TOKENS.get(cls, 1024)))["text"]
-    with ThreadPoolExecutor(max_workers=min(CONCURRENCY, max(1, len(jobs)))) as pool:
-        futures = [pool.submit(run, i) for i in range(len(jobs))]
-        for future in as_completed(futures):
-            i, value = future.result()
-            results[i] = value
-    chunks = []
-    for text, (_, _, cls, _) in zip(results, jobs):
-        if not text:
-            continue
-        if cls == "formula" and not text.startswith(("$", "\\[")):
-            text = f"\\[{text}\\]"
-        chunks.append(text)
-    return {"mode": "region", "regions": len(jobs), "markdown": "\n\n".join(chunks)}
+        region = regions[i]
+        crop = _crop(page, region["bbox_2d"])
+        return i, _chat(crop, PROMPTS.get(region.get("task_type"), PROMPTS["text"]), max_tokens)["text"]
+    with ThreadPoolExecutor(max_workers=min(CONCURRENCY, max(1, len(regions)))) as pool:
+        for future in as_completed([pool.submit(run, i) for i in range(len(regions))]):
+            i, results[i] = future.result()
+    return {"mode": "region", "regions": len(regions), "markdown": assemble_regions(regions, results)}
 
 
 def _render_pdf(raw: bytes, max_pages: int | None, dpi: int) -> list[bytes]:
+    if dpi <= 0 or (max_pages is not None and max_pages < 1):
+        raise ValueError("dpi and max_pages must be positive")
     if not raw.startswith(b"%PDF"):
         raise RuntimeError("Input is not a PDF")
     try:
@@ -216,7 +217,7 @@ def _render_pdf(raw: bytes, max_pages: int | None, dpi: int) -> list[bytes]:
         image = doc[i].render(scale=dpi/72).to_pil().convert("RGB")
         if image.width > 2200:
             scale = 2200 / image.width
-            image = image.resize((2200, int(image.height * scale)))
+            image = image.resize((2200, int(image.height * scale)), __import__("PIL.Image", fromlist=["Image"]).Resampling.LANCZOS)
         out = io.BytesIO()
         image.save(out, "PNG")
         pages.append(out.getvalue())
@@ -235,7 +236,7 @@ def ocr_pdf(pdf_path: str | None = None, pdf_base64: str | None = None,
             return i, ocr_image(image_base64=base64.b64encode(png_pages[i]).decode(), mode="region")["markdown"]
     elif mode == "page":
         def run(i: int):
-            return i, _chat(pages[i], PROMPTS["document"], MAX_TOKENS)["text"]
+            return i, finalize_document(_chat(pages[i], PROMPTS["document"], MAX_TOKENS)["text"])
     else:
         raise RuntimeError("mode must be 'page' or 'region'")
     outputs = [""] * len(pages)
@@ -251,8 +252,8 @@ def _schema_prompt(fields: list[str] | None) -> str:
     if not fields:
         return "Extract the key information from the document image as a JSON object. Use concise field names. Return JSON only; use an empty string for missing values."
     schema = {str(field): "" for field in fields}
-    return ("Extract the requested key information from the document image. Return only a valid JSON object "
-            "matching this schema; use an empty string when a value is absent.\n" + json.dumps(schema, ensure_ascii=False, indent=2))
+    return ("Extract key information in the image\n\nPlease output the key information in JSON format according to the following schema:\n"
+            + json.dumps(schema, ensure_ascii=False, indent=4))
 
 
 def kie_image(image_path: str | None = None, image_url: str | None = None,

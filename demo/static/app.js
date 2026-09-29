@@ -966,11 +966,12 @@ async function streamLiveOcr(dataUrl, onDelta, prompt, task) {
     try { reader.cancel(); } catch (e) { /* ignore */ }
   }
   if (err) throw new Error(err);
+  if (!doneMeta) throw new Error("推理流中断，未收到完成事件");
   return {
     latency_ms: doneMeta ? doneMeta.latency_ms : 0,
     usage: (doneMeta && doneMeta.usage) || {},
     model: (doneMeta && doneMeta.model) || "SeerRay-Lab/Xiaomi-OCR-0",
-    content,
+    content: doneMeta && typeof doneMeta.content === "string" ? doneMeta.content : content,
   };
 }
 
@@ -1016,7 +1017,7 @@ async function streamRegionOcr(dataUrl, handlers) {
   try {
     while (true) {
       const { done: d, value } = await reader.read();
-      if (done) break;
+      if (d) break;
       buf += decoder.decode(value, { stream: true });
       const parts = buf.split("\n\n");
       buf = parts.pop() || "";
@@ -1041,7 +1042,8 @@ async function streamRegionOcr(dataUrl, handlers) {
     try { reader.cancel(); } catch (e) {}
   }
   if (err) throw new Error(err);
-  return done || {};
+  if (!done) throw new Error("区域推理流中断，未收到完成事件");
+  return done;
 }
 
 /* region 拼装器：按阅读序保序上屏 */
@@ -1246,8 +1248,8 @@ $("srcPane").onclick = async function () {
       await waitTypedIdle();
       el.classList.remove("typing");
       el.classList.add("markdown");
-      recordResult(normalizeOcrOutput(el.textContent || ""), data);
-      el.innerHTML = renderMarkdown(normalizeOcrOutput(el.textContent || ""));
+      recordResult(data.content, data);
+      el.innerHTML = renderMarkdown(data.content || "");
       $("pillLat").innerHTML = "LATENCY <b>" + ((data.latency_ms || 0) / 1000).toFixed(2) + "s</b>";
       $("pillTok").innerHTML = "TOKENS <b>" + ((data.usage && data.usage.completion_tokens) || "—") + "</b>";
       $("pillModeText").textContent = "REGION · " + okN + "/" + count;

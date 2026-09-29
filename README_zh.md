@@ -20,7 +20,7 @@ cd Xiaomi-OCR-0
 
 ## 能力
 
-- **文档解析：** 识别文档页面并输出结构化 Markdown，表格使用 OTSL，公式使用 LaTeX。
+- **文档解析：** 识别文档页面并输出结构化 Markdown，模型输出的 OTSL 表格由后处理转换为 Markdown 中的 HTML 表格，公式使用 LaTeX。
 - **关键信息抽取（KIE）：** 按指定字段提取 JSON。
 - **OCR 视觉问答（VQA）：** 回答文档图像中的文字与内容问题。
 - **本地 Agent 工具：** MCP 服务负责提示词、PDF/图像预处理、可选区域检测、裁剪并发推理和结果组装。
@@ -58,7 +58,7 @@ Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main
 SGLang：
 
 ```bash
-sglang serve --model-path SeerRay-Lab/Xiaomi-OCR-0 \
+python -m sglang.launch_server --model-path SeerRay-Lab/Xiaomi-OCR-0 \
   --host 127.0.0.1 --port 8000 --context-length 16384
 ```
 
@@ -76,11 +76,11 @@ vllm serve SeerRay-Lab/Xiaomi-OCR-0 \
 在仓库目录中另开一个终端，运行：
 
 ```bash
-python3 -m pip install Pillow
+python3 -m pip install -r requirements.txt
 python3 demo/server.py --port 8787
 ```
 
-打开 <http://127.0.0.1:8787>。同一网页支持整页/区域文档解析、KIE、VQA 和 PDF 解析。Demo 需要 Pillow；PDF 输入还需要 `pypdfium2`。区域模式可选依赖 PaddlePaddle/PaddleX 与 PP-DocLayoutV3 权重。依赖说明见 [demo/README.md](demo/README.md)，MCP 安装说明见 [INSTALL.md](INSTALL.md)。
+打开 <http://127.0.0.1:8787>。同一网页支持整页/区域文档解析、KIE、VQA 和 PDF 解析。上述 `requirements.txt` 已包含图像、PDF 和公共后处理所需依赖。区域模式可选依赖 PaddlePaddle/PaddleX 与 PP-DocLayoutV3 权重。依赖说明见 [demo/README.md](demo/README.md)，MCP 安装说明见 [INSTALL.md](INSTALL.md)。
 
 ## 仓库内容
 
@@ -129,3 +129,5 @@ python3 demo/server.py --port 8787
 | MiniCPM-V-4.5 | 8B | 84.9 | 69.6 | 87.4 | 89.0 | 82.2 | 82.6 |
 
 平均分为这五项基准在 0–100 分尺度上的算术平均。
+
+批量推理见 [pipeline/README.md](pipeline/README.md)，公共前后处理见 [postprocess/README.md](postprocess/README.md)。

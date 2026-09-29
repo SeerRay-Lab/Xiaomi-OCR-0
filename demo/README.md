@@ -7,17 +7,13 @@ A compact local web UI for document parsing, key information extraction (KIE), O
 Start Xiaomi-OCR-0 with SGLang or vLLM on `127.0.0.1:8000`, then from the repository root run:
 
 ```bash
-python3 -m pip install Pillow
+python3 -m pip install -r requirements.txt
 python3 demo/server.py --port 8787
 ```
 
 Open <http://127.0.0.1:8787>. Set `XIAOMI_OCR_LOCAL_URL` if the inference server uses another local port. The demo only accepts loopback inference URLs.
 
-For PDF input, install the additional renderer:
-
-```bash
-python3 -m pip install pypdfium2
-```
+`requirements.txt` includes the PDF renderer.
 
 ## Use
 
@@ -26,7 +22,7 @@ python3 -m pip install pypdfium2
 - **VQA:** enter a question about text or content in the selected image. The demo uses the same concise-answer prompt as the MCP service.
 - **PDF:** upload a PDF to preview it and parse its pages in whole-page or region mode. Page rendering and OCR progress are shown in the existing status bar. PDF supports document parsing; use image inputs for KIE and VQA.
 
-The demo imports the Skill's `mcp_ocr_server.py` pipeline for image normalization, PP-DocLayoutV3 detection, confidence filtering, cropping, region token limits, and KIE prompt construction. Region and PDF-region output use the same reading-order assembly and formula formatting as the MCP implementation. Whole-page, KIE, and VQA inference keep the demo's token streaming.
+The demo imports the Skill's `mcp_ocr_server.py` pipeline for image normalization, PP-DocLayoutV3 detection, confidence filtering, cropping, region prompts, and KIE prompt construction. Region and PDF-region output use the same reading-order assembly and formula formatting as the MCP implementation. Whole-page, KIE, and VQA inference keep the demo's token streaming. Final document results come from the server-side shared postprocessor.
 
 ## Region-mode dependencies
 

@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import tempfile
+import tomlkit
 from pathlib import Path
 
 
@@ -32,27 +33,18 @@ def main() -> int:
         print("Refusing non-loopback OCR endpoint.", file=sys.stderr)
         return 1
 
-    block = "\n".join(
-        [
-            "[mcp_servers.xiaomi-ocr]",
-            f"command = {json.dumps(str(python), ensure_ascii=False)}",
-            f"args = [{json.dumps(str(skill_dir / 'mcp_ocr_server.py'), ensure_ascii=False)}]",
-            "env = { "
-            + f"XIAOMI_OCR_LOCAL_URL = {json.dumps(endpoint)}, "
-            + f"XIAOMI_OCR_MODEL = {json.dumps(model, ensure_ascii=False)} "
-            + "}",
-        ]
-    )
-    config.parent.mkdir(parents=True, exist_ok=True)
     original = config.read_text(encoding="utf-8") if config.exists() else ""
-    marker = re.compile(r"(?m)^\[mcp_servers\.xiaomi-ocr\]\s*$")
-    match = marker.search(original)
-    if match:
-        next_table = re.search(r"(?m)^\[", original[match.end() :])
-        end = match.end() + next_table.start() if next_table else len(original)
-        updated = original[: match.start()] + block + "\n" + original[end:].lstrip("\n")
-    else:
-        updated = original.rstrip() + ("\n\n" if original.strip() else "") + block + "\n"
+    document = tomlkit.parse(original)
+    servers = document.setdefault("mcp_servers", tomlkit.table())
+    entry = servers.setdefault("xiaomi-ocr", tomlkit.table())
+    entry["command"] = str(python)
+    entry["args"] = [str(skill_dir / "mcp_ocr_server.py")]
+    env = entry.setdefault("env", tomlkit.table())
+    env["XIAOMI_OCR_LOCAL_URL"] = endpoint
+    env["XIAOMI_OCR_MODEL"] = model
+    env["XIAOMI_OCR_REPO"] = os.environ.get("XIAOMI_OCR_REPO", str(skill_dir.parents[1]))
+    updated = tomlkit.dumps(document)
+    tomlkit.parse(updated)
 
     config.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix="config.toml.", dir=config.parent)

@@ -1,0 +1,3 @@
+# Install a platform-compatible PaddlePaddle wheel separately (see INSTALL.md).
+-r requirements.txt
+paddlex

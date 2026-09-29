@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Xiaomi-OCR-0 Demo — local model-backed web app and static server.
 
-Zero third-party deps (stdlib only) except pypdfium2 for PDF page rendering.
+Uses the repository requirements and optional PaddleX for region detection.
 Run:
     python3 server.py --port 8787
 """
@@ -99,8 +99,6 @@ def mcp_pipeline(model_url: str | None = None, model: str | None = None):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         _MCP_MODULE = module
-    _MCP_MODULE.OCR_BASE = (model_url or LOCAL_MODEL_URL).rstrip("/")
-    _MCP_MODULE.OCR_MODEL = model or LOCAL_MODEL
     return _MCP_MODULE
 
 
@@ -114,20 +112,20 @@ def call_layout(image_b64: str, mime: str = "image/png") -> list[dict]:
     raw = base64.b64decode(image_b64)
     regions = []
     for r in mcp._layout_regions(raw):
-        cls = r["cls"]
-        bucket = "formula" if cls in {"formula", "equation", "isolate_formula"} else (
-            "table" if cls == "table" else "text"
-        )
+        if r.get("task_type") in {"skip", "abandon"}:
+            continue
+        cls = r["label"]
+        bucket = r.get("task_type", "text")
         prompt = mcp.PROMPTS["formula" if bucket == "formula" else "table" if bucket == "table" else "text"]
-        regions.append({"bbox": r["box"], "label": cls, "bucket": bucket,
+        regions.append({"source_region": r, "bbox": r["bbox_2d"], "label": cls, "bucket": bucket,
                         "score": r["score"], "prompt": prompt})
     return regions
 
 
-def crop_region(png_bytes: bytes, bbox: list[float], pad: int = 4) -> bytes:
+def crop_region(png_bytes: bytes, bbox: list[float], pad: int = 0) -> bytes:
     import io
     from PIL import Image
-    return mcp_pipeline()._crop(Image.open(io.BytesIO(png_bytes)), bbox, pad)
+    return mcp_pipeline()._crop(Image.open(io.BytesIO(png_bytes)), bbox)
 
 
 def ocr_one_region(
@@ -137,9 +135,8 @@ def ocr_one_region(
     t0 = time.perf_counter()
     try:
         mcp = mcp_pipeline(model_url, model)
-        token_cap = max_tokens if label == "page_fallback" else mcp.REGION_MAX_TOKENS.get(label, mcp.REGION_MAX_TOKENS.get(bucket, 1024))
         result = mcp._chat(png, prompt or mcp.PROMPTS.get(bucket, mcp.PROMPTS["text"]),
-                           min(max_tokens, token_cap))
+                           max_tokens, model_url=model_url, model=model)
         text = (result.get("text") or "").strip()
         return {
             "idx": idx,
@@ -163,25 +160,14 @@ def ocr_one_region(
 
 def assemble_regions(regions: list[dict], results: dict[int, dict]) -> str:
     """Join region texts in reading order; tables/formulas wrapped."""
-    parts: list[str] = []
-    for i, reg in enumerate(regions):
-        r = results.get(i) or {"ok": False, "text": "", "bucket": reg.get("bucket", "text")}
-        text = (r.get("text") or "").strip()
-        if not text:
-            continue
-        bucket = r.get("bucket") or reg.get("bucket") or "text"
-        if bucket == "table":
-            # keep OTSL/HTML as-is for downstream renderer
-            parts.append(text)
-        elif bucket == "formula":
-            # ensure display math
-            if not (text.startswith("$") or text.startswith("\\[")):
-                parts.append(f"\\[{text}\\]")
-            else:
-                parts.append(text)
-        else:
-            parts.append(text)
-    return "\n\n".join(parts).strip()
+    failed = [r for r in results.values() if not r.get("ok")]
+    if failed:
+        raise RuntimeError(f"{len(failed)} region(s) failed: {failed[0].get('error', 'inference error')}")
+    texts = [results[i]["text"] for i in range(len(regions))]
+    mcp = mcp_pipeline()
+    if len(regions) == 1 and regions[0].get("label") == "page_fallback":
+        return mcp.finalize_document(texts[0])
+    return mcp.assemble_regions([r["source_region"] for r in regions], texts)
 
 
 def parse_image_regions(
@@ -318,6 +304,7 @@ def stream_image_regions(
     per = [results[i] for i in range(len(regions))]
     yield {
         "type": "done",
+        "content": assemble_regions(regions, results),
         "latency_ms": int((time.perf_counter() - t0) * 1000),
         "layout_ms": t_layout,
         "concurrency": max_conc,
@@ -384,6 +371,8 @@ def call_local_model(
         "temperature": temperature,
         "max_tokens": max_tokens,
         "stream": False,
+        "top_p": 0.8, "presence_penalty": 0.0, "repetition_penalty": 1.0,
+        "chat_template_kwargs": {"enable_thinking": False},
     }
     data = json.dumps(payload).encode("utf-8")
     headers = {
@@ -419,6 +408,10 @@ def call_local_model(
                 p.get("text", "") if isinstance(p, dict) else str(p) for p in content
             )
 
+    if not content.strip():
+        raise RuntimeError("Local model returned an empty response")
+    if choices[0].get("finish_reason") == "length":
+        raise RuntimeError("Model output was truncated; increase the output/context budget")
     return {
         "content": content,
         "model": parsed.get("model", model),
@@ -445,7 +438,25 @@ def ocr_png_bytes(png: bytes, model_url: str, model: str, max_tokens: int) -> tu
     )
 
 
-def run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
+def merge_usage(a, b):
+    result = dict(a)
+    for key, value in b.items():
+        if isinstance(value, dict):
+            result[key] = merge_usage(result.get(key) if isinstance(result.get(key), dict) else {}, value)
+        elif isinstance(value, (int, float)):
+            previous = result.get(key)
+            result[key] = (previous if isinstance(previous, (int, float)) else 0) + value
+    return result
+
+
+def run_book_job(jid, *args, **kwargs):
+    try:
+        _run_book_job(jid, *args, **kwargs)
+    except Exception as exc:
+        job_update(jid, status="error", error=str(exc))
+
+
+def _run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
                  max_tokens: int, max_pages: int | None, dpi: int,
                  title: str | None = None, concurrency: int = 4,
                  prompt: str = DOC_PROMPT, mode: str = "page") -> None:
@@ -489,6 +500,7 @@ def run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
     # ── Phase 1: render all pages locally (fast) ──
     page_pngs: list[bytes] = []
     try:
+        rendered_pages = mcp_pipeline()._render_pdf(pdf_path.read_bytes(), max_pages, dpi)
         for i in range(total):
             job = job_get(jid) or {}
             if job.get("cancel"):
@@ -496,17 +508,9 @@ def run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
                 return
             job_update(jid, current=i + 1, phase="render",
                        phase_label=f"渲染 {i + 1}/{total}")
-            page = doc[i]
-            bitmap = page.render(scale=scale)
-            pil = bitmap.to_pil().convert("RGB")
-            if pil.width > 2200:
-                ratio = 2200 / pil.width
-                pil = pil.resize((2200, int(pil.height * ratio)), Image.Resampling.LANCZOS)
             page_png = pages_dir / f"p{i + 1:04d}.png"
-            pil.save(page_png, format="PNG", optimize=True)
-            buf = io.BytesIO()
-            pil.save(buf, format="PNG", optimize=True)
-            page_pngs.append(buf.getvalue())
+            page_png.write_bytes(rendered_pages[i])
+            page_pngs.append(rendered_pages[i])
     finally:
         try:
             doc.close()
@@ -545,6 +549,8 @@ def run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
                     max_tokens=max_tokens,
                 )
             text = (result.get("content") or "").strip()
+            if mode == "page":
+                text = mcp_pipeline().finalize_document(text)
             lat = result.get("latency_ms") or int((time.perf_counter() - t0) * 1000)
             return idx, {
                 "ok": True,
@@ -575,10 +581,7 @@ def run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
                 page_log = list(cur.get("page_log") or [])
                 old_usage = cur.get("usage") or {}
                 new_usage = r.get("usage") or {}
-                usage_totals = {
-                    key: (old_usage.get(key) or 0) + (new_usage.get(key) or 0)
-                    for key in set(old_usage) | set(new_usage)
-                }
+                usage_totals = merge_usage(old_usage, new_usage)
                 page_log.append({
                     "page": idx + 1,
                     "ok": r["ok"],
@@ -618,7 +621,8 @@ def run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
     out_path.write_text(md, encoding="utf-8")
     job_update(
         jid,
-        status="done",
+        status="error" if any(not r["ok"] for r in results.values()) else "done",
+        error="One or more PDF pages failed; partial output is retained." if any(not r["ok"] for r in results.values()) else "",
         markdown=md,
         result_path=str(out_path),
         elapsed_ms=int((time.perf_counter() - t_all) * 1000),
@@ -820,6 +824,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(502, {"error": str(e)})
             return
 
+        if req.get("task", "document") == "document":
+            result["content"] = mcp_pipeline().finalize_document(result["content"])
         self._json(200, result)
 
     def _handle_ocr_stream(self):
@@ -884,6 +890,8 @@ class Handler(SimpleHTTPRequestHandler):
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            "top_p": 0.8, "presence_penalty": 0.0, "repetition_penalty": 1.0,
+            "chat_template_kwargs": {"enable_thinking": False},
             "stream_options": {"include_usage": True},
         }
         headers = {"Content-Type": "application/json", "Accept": "text/event-stream"}
@@ -919,6 +927,8 @@ class Handler(SimpleHTTPRequestHandler):
                 raise
 
         usage: dict = {}
+        full_text = ""
+        finish_reason = None
         try:
             for raw_line in upstream:
                 line = raw_line.decode("utf-8", errors="replace").strip()
@@ -936,10 +946,15 @@ class Handler(SimpleHTTPRequestHandler):
                 choices = obj.get("choices") or []
                 if not choices:
                     continue
+                finish_reason = choices[0].get("finish_reason") or finish_reason
                 delta = (choices[0].get("delta") or {}).get("content") or ""
                 if delta:
+                    full_text += delta
                     sse("delta", {"t": delta})
+            if finish_reason == "length" or not full_text.strip():
+                raise RuntimeError("Model output was truncated or empty")
             sse("done", {
+                "content": mcp_pipeline().finalize_document(full_text) if req.get("task", "document") == "document" else full_text,
                 "latency_ms": int((time.perf_counter() - t0) * 1000),
                 "usage": usage,
                 "model": model,
