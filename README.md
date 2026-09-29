@@ -1,10 +1,13 @@
-# Xiaomi-OCR-0
-
+<div align="center">
+<h1 align="center">Xiaomi-OCR-0</h1>
+<p><b>A unified 0.8B model for document parsing and OCR-related understanding.</b></p>
+<p><b>English</b> · <a href="README_zh.md">简体中文</a></p>
 <p>
-  <a href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0">Hugging Face Model</a> ·
-  <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0">Project Page</a> ·
-  <a href="README_zh.md">简体中文</a>
+  <a href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Hugging%20Face-Model-FFD21E?logo=huggingface&amp;logoColor=FFD21E" alt="Hugging Face Model"></a>
+  <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Project-Page-FF6900?logo=huggingface&amp;logoColor=FFD21E" alt="Project Page"></a>
+  <a href="https://github.com/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/GitHub-SeerRay--Lab%2FXiaomi--OCR--0-181717?logo=github" alt="GitHub"></a>
 </p>
+</div>
 
 Xiaomi-OCR-0 is a unified 0.8B vision-language model for document parsing and OCR-centric understanding. Starting from Qwen3.5-0.8B, it is trained on an approximately 170M-sample OCR-centric corpus with Q-Mask text anchoring, continued pretraining (CPT), and mixed-task reinforcement learning (Mix-RL).
 
@@ -113,7 +116,7 @@ The comparisons below summarize selected results. Arrows indicate the preferred 
 | MinerU2.5-Pro | 1.2B | 95.75 | 88.94 | 87.33 |
 | GLM-OCR | 0.9B | 95.22 | 90.32 | 85.08 |
 
-All three columns report Overall scores; “—” means the source table does not report a value.
+All three columns report Overall scores.
 
 ### OCR-centric visual question answering
 

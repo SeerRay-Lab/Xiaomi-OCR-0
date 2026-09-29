@@ -1,10 +1,13 @@
-# Xiaomi-OCR-0
-
+<div align="center">
+<h1 align="center">Xiaomi-OCR-0</h1>
+<p><b>0.8B 模型，统一文档解析与 OCR 相关理解。</b></p>
+<p><a href="README.md">English</a> · <b>简体中文</b></p>
 <p>
-  <a href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0">Hugging Face 模型</a> ·
-  <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0">项目页面</a> ·
-  <a href="README.md">English</a>
+  <a href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Hugging%20Face-Model-FFD21E?logo=huggingface&amp;logoColor=FFD21E" alt="Hugging Face Model"></a>
+  <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Project-Page-FF6900?logo=huggingface&amp;logoColor=FFD21E" alt="Project Page"></a>
+  <a href="https://github.com/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/GitHub-SeerRay--Lab%2FXiaomi--OCR--0-181717?logo=github" alt="GitHub"></a>
 </p>
+</div>
 
 Xiaomi-OCR-0 是一个统一的 0.8B 视觉语言模型，面向文档解析与 OCR 中心理解。模型以 Qwen3.5-0.8B 为起点，在约 1.7 亿条 OCR 中心样本上训练，采用 Q-Mask 文本锚定、继续预训练（CPT）和混合任务强化学习（Mix-RL）。
 
@@ -113,7 +116,7 @@ python3 demo/server.py --port 8787
 | MinerU2.5-Pro | 1.2B | 95.75 | 88.94 | 87.33 |
 | GLM-OCR | 0.9B | 95.22 | 90.32 | 85.08 |
 
-三列均为 Overall 成绩；“—”表示源表没有报告该数值。
+三列均为 Overall 成绩。
 
 ### OCR 中心视觉问答
 
