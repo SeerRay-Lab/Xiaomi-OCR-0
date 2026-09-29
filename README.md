@@ -36,7 +36,7 @@ For printed, regular documents, region parsing can detect and process regions co
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
 ```
 
-The model runs on your machine; no hosted Xiaomi-OCR API is required.
+The model runs on your machine.
 
 ## Run the browser demo
 
