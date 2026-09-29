@@ -36,7 +36,7 @@ cd Xiaomi-OCR-0
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
 ```
 
-模型在你的机器上运行，不需要托管的 Xiaomi-OCR API。
+模型在你的机器上运行。
 
 ## 运行浏览器 Demo
 
