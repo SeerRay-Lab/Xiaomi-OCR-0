@@ -33,11 +33,13 @@ cd Xiaomi-OCR-0
 
 > ⚠️ **注意：** 经你授权后，这个 Skill 可能会创建 Python 环境、安装依赖、下载模型权重、安装并配置 SGLang 或 vLLM，以及注册 MCP 服务。模型和版面分析权重可能较大。如果你不同意这种安装流程，请不要执行下面的命令。
 
+复制下面这句话发送给你的agent
+
 ```
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
 ```
 
-模型在你的机器上运行。
+模型将在你的机器上运行。
 
 ## 运行浏览器 Demo
 
