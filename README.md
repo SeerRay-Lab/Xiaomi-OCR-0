@@ -33,11 +33,13 @@ For printed, regular documents, region parsing can detect and process regions co
 
 > ⚠️ **Notice:** With your authorization, this Skill may create a Python environment, install dependencies, download model weights, install and configure SGLang or vLLM, and register an MCP server. Model and layout downloads can be large. If you do not agree to this setup flow, do not execute the command below.
 
+copy and send to your agent:
+
 ```text
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
 ```
 
-The model runs on your machine.
+The model will run on your machine.
 
 ## Run the browser demo
 
