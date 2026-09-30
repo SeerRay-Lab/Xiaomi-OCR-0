@@ -1,6 +1,8 @@
 """Shared region assembly, preserved from the evaluation pipeline."""
 import re
 from collections import Counter
+from copy import deepcopy
+
 try:
     from wordfreq import zipf_frequency
 except ImportError:

@@ -5,6 +5,9 @@ Hugging Face checkpoint and serve it with a compatible local SGLang or vLLM inst
 The MCP service connects only to the loopback listener on that machine. There is no
 hosted OCR service in this workflow.
 
+Python 3.10 or newer is required. The installer uses a compatible `python3` when available
+and otherwise checks `python3.13` through `python3.10`; set `PYTHON_BIN` to choose one explicitly.
+
 ## 1. Check for existing local components
 
 Before installing anything, check whether a compatible SGLang/vLLM server, model checkpoint,

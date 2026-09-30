@@ -42,6 +42,7 @@ Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main
 ## 运行浏览器 Demo
 
 不安装 Agent Skill 或 MCP 服务也能运行网页 Demo。Demo 会向本机的 SGLang 或 vLLM 服务 `http://127.0.0.1:8000/v1` 发送请求。
+需要 Python 3.10 或更高版本。
 
 ### 1. 安装推理运行环境
 
@@ -89,7 +90,9 @@ python3 demo/server.py --port 8787
 |:--|:--|
 | [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill 与 MCP 服务，支持 OCR、PDF 解析、KIE 和 VQA |
 | [`demo/`](demo/) | 本地浏览器 Demo 和样例 |
-| [`workflows/`](workflows/) | 评测辅助工具 |
+| [`example_pics/`](example_pics/) | 与 Hugging Face 模型仓库同步的示例输入、参考 Markdown 和演示动画 |
+| [`pipeline/`](pipeline/) | 整页与区域批量推理 |
+| [`postprocess/`](postprocess/) | 表格转换、公式/文本组装与重复内容处理 |
 | [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | 模型卡片、示例和基准图表 |
 | [Hugging Face Space](https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0/tree/main) | Space 资源和项目页源码 |
 | [`examples/`](examples/) | MCP 配置示例 |

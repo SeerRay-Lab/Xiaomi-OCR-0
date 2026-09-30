@@ -74,6 +74,12 @@ def _http_json(url: str, payload: dict, timeout: int = 300) -> dict:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
+        if e.code == 400 and "maximum context length" in body.lower():
+            raise RuntimeError(
+                "The image/prompt plus requested output exceeds the model context. "
+                "Reduce max_tokens and retry; 16384 is the output ceiling, not a guaranteed "
+                "completion size for every input."
+            ) from e
         raise RuntimeError(f"Local inference returned HTTP {e.code}: {body[:500]}") from e
     except urllib.error.URLError as e:
         raise RuntimeError(f"Local model is unavailable at {_local_url()}: {e.reason}. Start SGLang or vLLM first.") from e
@@ -81,6 +87,7 @@ def _http_json(url: str, payload: dict, timeout: int = 300) -> dict:
 
 def _chat(image: bytes, prompt: str, max_tokens: int, *, model_url: str | None = None, model: str | None = None) -> dict:
     url = _local_url(model_url) + "/chat/completions"
+    image = _image_png(image)
     encoded = base64.b64encode(image).decode()
     payload = {"model": model or OCR_MODEL, "messages": [{"role": "user", "content": [
         {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
@@ -120,7 +127,9 @@ def _read_bytes(path: str | None, url: str | None, b64: str | None, kind: str) -
 def _image_png(raw: bytes) -> bytes:
     try:
         from PIL import Image
+        from pipeline.cropping import fit_image
         image = Image.open(io.BytesIO(raw)).convert("RGB")
+        fit_image(image)
         out = io.BytesIO()
         image.save(out, format="PNG")
         return out.getvalue()
@@ -189,12 +198,13 @@ def ocr_image(image_path: str | None = None, image_url: str | None = None,
     if not regions:
         result = _chat(png, PROMPTS["document"], max_tokens)
         return {"mode": "page_fallback", "reason": "layout returned no usable regions", "markdown": finalize_document(result["text"])}
-    regions = [r for r in regions if r.get("task_type") not in {"skip", "abandon"}]
     results = [""] * len(regions)
     def run(i: int):
         region = regions[i]
+        task_type = region.get("task_type", "text")
+        region_max_tokens = min(max_tokens, REGION_MAX_TOKENS.get(task_type, REGION_MAX_TOKENS["text"]))
         crop = _crop(page, region["bbox_2d"])
-        return i, _chat(crop, PROMPTS.get(region.get("task_type"), PROMPTS["text"]), max_tokens)["text"]
+        return i, _chat(crop, PROMPTS.get(task_type, PROMPTS["text"]), region_max_tokens)["text"]
     with ThreadPoolExecutor(max_workers=min(CONCURRENCY, max(1, len(regions)))) as pool:
         for future in as_completed([pool.submit(run, i) for i in range(len(regions))]):
             i, results[i] = future.result()
@@ -226,17 +236,18 @@ def _render_pdf(raw: bytes, max_pages: int | None, dpi: int) -> list[bytes]:
 
 
 def ocr_pdf(pdf_path: str | None = None, pdf_base64: str | None = None,
-            mode: str = "page", max_pages: int | None = None, dpi: int = 150) -> dict:
+            mode: str = "page", max_pages: int | None = None, dpi: int = 150,
+            max_tokens: int = MAX_TOKENS) -> dict:
     raw = _read_bytes(pdf_path, None, pdf_base64, "pdf")
     pages = _render_pdf(raw, max_pages, dpi)
     if mode == "region":
         # Use the same end-to-end in-process pipeline per page; page-level jobs run concurrently.
         png_pages = pages
         def run(i: int):
-            return i, ocr_image(image_base64=base64.b64encode(png_pages[i]).decode(), mode="region")["markdown"]
+            return i, ocr_image(image_base64=base64.b64encode(png_pages[i]).decode(), mode="region", max_tokens=max_tokens)["markdown"]
     elif mode == "page":
         def run(i: int):
-            return i, finalize_document(_chat(pages[i], PROMPTS["document"], MAX_TOKENS)["text"])
+            return i, finalize_document(_chat(pages[i], PROMPTS["document"], max_tokens)["text"])
     else:
         raise RuntimeError("mode must be 'page' or 'region'")
     outputs = [""] * len(pages)
@@ -257,9 +268,10 @@ def _schema_prompt(fields: list[str] | None) -> str:
 
 
 def kie_image(image_path: str | None = None, image_url: str | None = None,
-              image_base64: str | None = None, fields: list[str] | None = None) -> dict:
+              image_base64: str | None = None, fields: list[str] | None = None,
+              max_tokens: int = MAX_TOKENS) -> dict:
     png = _image_png(_read_bytes(image_path, image_url, image_base64, "image"))
-    raw = _chat(png, _schema_prompt(fields), MAX_TOKENS)["text"]
+    raw = _chat(png, _schema_prompt(fields), max_tokens)["text"]
     match = re.search(r"\{[\s\S]*\}", raw)
     if not match:
         return {"json": None, "raw": raw, "warning": "Model output did not contain a JSON object"}
@@ -289,8 +301,8 @@ def _props_image():
 
 TOOLS = [
     {"name": "ocr_image", "description": "Parse one image. Use mode='region' for standard printed documents (MCP detects layout, crops and OCRs regions concurrently); use mode='page' for scene text, handwriting, calligraphy, or historic/irregular documents where segmentation could split content incorrectly. The default is page.", "inputSchema": {"type": "object", "properties": {**_props_image(), "mode": {"type": "string", "enum": ["page", "region"], "default": "page"}, "max_tokens": {"type": "integer", "default": MAX_TOKENS}}}},
-    {"name": "ocr_pdf", "description": "Parse a PDF to Markdown. Standard printed documents may use mode='region' for internal layout detection and concurrent region OCR; scene text, handwriting, calligraphy and historical documents should use mode='page'.", "inputSchema": {"type": "object", "properties": {"pdf_path": {"type": "string"}, "pdf_base64": {"type": "string"}, "mode": {"type": "string", "enum": ["page", "region"], "default": "page"}, "max_pages": {"type": "integer"}, "dpi": {"type": "integer", "default": 150}}}},
-    {"name": "kie_image", "description": "Extract key information from an image as JSON. Optionally provide field names as a schema. Image reading, prompting and JSON cleanup are handled by this MCP service.", "inputSchema": {"type": "object", "properties": {**_props_image(), "fields": {"type": "array", "items": {"type": "string"}, "description": "Optional output field names"}}}},
+    {"name": "ocr_pdf", "description": "Parse a PDF to Markdown. Standard printed documents may use mode='region' for internal layout detection and concurrent region OCR; scene text, handwriting, calligraphy and historical documents should use mode='page'.", "inputSchema": {"type": "object", "properties": {"pdf_path": {"type": "string"}, "pdf_base64": {"type": "string"}, "mode": {"type": "string", "enum": ["page", "region"], "default": "page"}, "max_pages": {"type": "integer"}, "dpi": {"type": "integer", "default": 150}, "max_tokens": {"type": "integer", "default": MAX_TOKENS}}}},
+    {"name": "kie_image", "description": "Extract key information from an image as JSON. Optionally provide field names as a schema. Image reading, prompting and JSON cleanup are handled by this MCP service.", "inputSchema": {"type": "object", "properties": {**_props_image(), "fields": {"type": "array", "items": {"type": "string"}, "description": "Optional output field names"}, "max_tokens": {"type": "integer", "default": MAX_TOKENS}}}},
     {"name": "vqa_image", "description": "Answer a question about text or information in a document image. The MCP applies the concise OCR-VQA answer format; provide the image and question only.", "inputSchema": {"type": "object", "properties": {**_props_image(), "question": {"type": "string"}}, "required": ["question"]}},
 ]
 
@@ -300,10 +312,10 @@ def _tool_call(name: str, args: dict) -> dict:
         if name in {"ocr_image", "kie_image", "vqa_image"}:
             params = {k: args.get(k) for k in ("image_path", "image_url", "image_base64")}
             if name == "ocr_image": result = ocr_image(**params, mode=args.get("mode", "page"), max_tokens=int(args.get("max_tokens", MAX_TOKENS)))
-            elif name == "kie_image": result = kie_image(**params, fields=args.get("fields"))
+            elif name == "kie_image": result = kie_image(**params, fields=args.get("fields"), max_tokens=int(args.get("max_tokens", MAX_TOKENS)))
             else: result = vqa_image(**params, question=args.get("question", ""))
         elif name == "ocr_pdf":
-            result = ocr_pdf(pdf_path=args.get("pdf_path"), pdf_base64=args.get("pdf_base64"), mode=args.get("mode", "page"), max_pages=args.get("max_pages"), dpi=int(args.get("dpi", 150)))
+            result = ocr_pdf(pdf_path=args.get("pdf_path"), pdf_base64=args.get("pdf_base64"), mode=args.get("mode", "page"), max_pages=args.get("max_pages"), dpi=int(args.get("dpi", 150)), max_tokens=int(args.get("max_tokens", MAX_TOKENS)))
         else:
             return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
         return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False, indent=2) if isinstance(result, dict) and name in {"kie_image", "vqa_image"} else result.get("markdown", json.dumps(result, ensure_ascii=False))}]}

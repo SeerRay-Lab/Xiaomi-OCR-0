@@ -135,6 +135,8 @@ def ocr_one_region(
     t0 = time.perf_counter()
     try:
         mcp = mcp_pipeline(model_url, model)
+        if label != "page_fallback":
+            max_tokens = min(max_tokens, mcp.REGION_MAX_TOKENS.get(bucket, mcp.REGION_MAX_TOKENS["text"]))
         result = mcp._chat(png, prompt or mcp.PROMPTS.get(bucket, mcp.PROMPTS["text"]),
                            max_tokens, model_url=model_url, model=model)
         text = (result.get("text") or "").strip()
@@ -387,6 +389,11 @@ def call_local_model(
             status = resp.status
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
+        if e.code == 400 and "maximum context length" in body.lower():
+            raise RuntimeError(
+                "The image/prompt plus requested output exceeds the model context. "
+                "Reduce max_tokens and retry; 16384 is only the output ceiling."
+            ) from e
         raise RuntimeError(f"HTTP {e.code}: {body[:2000]}") from e
     except urllib.error.URLError as e:
         raise RuntimeError(f"Connection failed: {e.reason}") from e

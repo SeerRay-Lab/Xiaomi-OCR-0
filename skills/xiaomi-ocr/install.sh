@@ -3,21 +3,42 @@
 set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
 LOCAL_URL="${XIAOMI_OCR_LOCAL_URL:-http://127.0.0.1:8000/v1}"
 MODEL="${XIAOMI_OCR_MODEL:-SeerRay-Lab/Xiaomi-OCR-0}"
 VENV="$SKILL_DIR/.venv"
+
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  PYTHON_CANDIDATES=("$PYTHON_BIN")
+else
+  PYTHON_CANDIDATES=(python3 python3.13 python3.12 python3.11 python3.10)
+fi
+PYTHON_BIN=""
+for candidate in "${PYTHON_CANDIDATES[@]}"; do
+  if command -v "$candidate" >/dev/null \
+      && "$candidate" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+if [[ -z "$PYTHON_BIN" ]]; then
+  echo "Python 3.10 or newer is required. Set PYTHON_BIN to a compatible interpreter." >&2
+  exit 1
+fi
 
 if [[ "$LOCAL_URL" != http://127.0.0.1:* && "$LOCAL_URL" != http://localhost:* && "$LOCAL_URL" != http://\[::1\]:* ]]; then
   echo "XIAOMI_OCR_LOCAL_URL must use a loopback address (127.0.0.1, localhost, or ::1)." >&2
   exit 1
 fi
-command -v "$PYTHON_BIN" >/dev/null || { echo "Python 3 is required." >&2; exit 1; }
 if [[ ! -x "$VENV/bin/python" && ! -x "$VENV/Scripts/python.exe" ]]; then
   "$PYTHON_BIN" -m venv "$VENV"
 fi
 PY="$VENV/bin/python"
 [[ -x "$PY" ]] || PY="$VENV/Scripts/python.exe"
+if ! "$PY" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' >/dev/null 2>&1 \
+    || ! "$PY" -m pip --version >/dev/null 2>&1; then
+  echo "Existing environment at $VENV is incomplete or uses Python older than 3.10; remove it and rerun." >&2
+  exit 1
+fi
 if ! "$PY" -c 'import PIL, pypdfium2, numpy, tqdm, wordfreq, tomlkit' >/dev/null 2>&1; then
   "$PY" -m pip install -r "$SKILL_DIR/requirements.txt"
 else

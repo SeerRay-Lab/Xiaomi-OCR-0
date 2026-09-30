@@ -28,7 +28,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from openai import OpenAI
+from PIL import Image
 
+from pipeline.cropping import fit_image
 from postprocess.repetition_guard import analyze_repetition
 
 try:
@@ -152,9 +154,14 @@ EXTRA_ARGS = ["--trust-remote-code"]
 
 
 def encode_image_base64(image_path):
-    """Read image file and encode to base64 directly."""
-    with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
+    """Encode an RGB PNG within the model's 2048 x 2048 input bound."""
+    from io import BytesIO
+
+    with Image.open(image_path) as source:
+        image = fit_image(source.convert("RGB"))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
 # ======================================================================
@@ -351,10 +358,7 @@ def infer_one(client, model_name, image_path, prompt, *,
     """
     try:
         b64 = encode_image_base64(image_path)
-        ext = Path(image_path).suffix.lower().lstrip(".")
-        mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png",
-                "webp": "webp", "bmp": "bmp"}.get(ext, "jpeg")
-        data_url = f"data:image/{mime};base64,{b64}"
+        data_url = f"data:image/png;base64,{b64}"
 
         kwargs = dict(
             model=model_name,
@@ -449,7 +453,7 @@ def parse_args():
     parser.add_argument("--repetition_penalty", type=float, default=1.0,
                         help="vLLM repetition penalty passed via extra_body (default: 1.0)")
     parser.add_argument("--max_tokens", type=int, default=16384,
-                        help="Max output tokens per image (default: 16384)")
+                        help="Max output tokens per image (default: 16384; lower it if input plus output exceeds context)")
     parser.add_argument("--request_timeout", type=int, default=600,
                         help="Per-request timeout in seconds (default: 600)")
     parser.add_argument("--retry-repetitive", action="store_true",

@@ -2,6 +2,16 @@
 import numpy as np
 from PIL import Image
 
+MAX_IMAGE_EDGE = 2048
+
+
+def fit_image(image, max_edge=MAX_IMAGE_EDGE):
+    """Downscale an image to the supported bounds while preserving its aspect ratio."""
+    if image.width > max_edge or image.height > max_edge:
+        image.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+    return image
+
+
 def crop_region(image, bbox_2d, polygon=None):
     w, h = image.size
     x1 = int(bbox_2d[0] / 1000 * w)

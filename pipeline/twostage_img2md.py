@@ -426,11 +426,12 @@ def run_layout_detection(images, processor, model, device="cuda:0", threshold=LA
     return all_layouts
 
 
-from pipeline.cropping import crop_region
+from pipeline.cropping import crop_region, fit_image
 
 
 def encode_image_base64(image, fmt="PNG"):
     buf = BytesIO()
+    fit_image(image)
     image.save(buf, format=fmt)
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
@@ -660,7 +661,7 @@ def parse_args():
     parser.add_argument("--retry-max-unit-chars", type=int, default=256,
                         help="Maximum repeated suffix unit length to inspect (default: 256)")
     parser.add_argument("--max_tokens", type=int, default=16384,
-                        help="Max output tokens per region (default: 16384)")
+                        help="Max output tokens per region (default: 16384; lower it if input plus output exceeds context)")
     parser.add_argument("--request_timeout", type=int, default=600,
                         help="Per-request timeout in seconds (default: 600)")
     parser.add_argument("--think", action="store_true",

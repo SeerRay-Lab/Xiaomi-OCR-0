@@ -65,10 +65,7 @@ def postprocess_otsl_tables(markdown: str) -> str:
 
         if not should_skip and OTSL_TAG_RE.search(stripped):
             try:
-                if convert_otsl_to_html is not None:
-                    html = convert_otsl_to_html(stripped)
-                else:
-                    html = _fallback_otsl_to_html(stripped)
+                html = convert_otsl_to_html(stripped)
                 if html:
                     text = html
             except Exception:

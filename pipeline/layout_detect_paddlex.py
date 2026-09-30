@@ -155,7 +155,7 @@ def load_batch(
 def worker_main(
     worker_id: int,
     gpu_id: int,
-    model_dir: str,
+    model_dir: str | None,
     threshold: float,
     batch_size: int,
     items: list[tuple[int, str]],
@@ -171,12 +171,10 @@ def worker_main(
             f"(threshold={threshold})...",
             flush=True,
         )
-        model = create_model(
-            "PP-DocLayoutV3",
-            model_dir=model_dir,
-            device=device,
-            threshold=threshold,
-        )
+        options = {"device": device, "threshold": threshold}
+        if model_dir is not None:
+            options["model_dir"] = model_dir
+        model = create_model("PP-DocLayoutV3", **options)
         print(f"  [GPU-{gpu_id}] PaddleX layout ready", flush=True)
 
         for offset in range(0, len(items), batch_size):
@@ -246,7 +244,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if not Path(args.model_dir).is_dir():
+    if args.model_dir is not None and not Path(args.model_dir).is_dir():
         raise SystemExit(f"[FAIL] PaddleX model directory not found: {args.model_dir}")
 
     dataset = load_jsonl(args.input_jsonl)

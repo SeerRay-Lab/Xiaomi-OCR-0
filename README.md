@@ -42,6 +42,7 @@ The model runs on your machine.
 ## Run the browser demo
 
 You can run the browser demo without installing the Agent Skill or MCP server. The demo sends requests to a local SGLang or vLLM inference server at `http://127.0.0.1:8000/v1`.
+Python 3.10 or newer is required.
 
 ### 1. Install an inference runtime
 
@@ -89,9 +90,9 @@ Open <http://127.0.0.1:8787>. The same browser page supports whole-page/region d
 |:--|:--|
 | [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill and MCP service for OCR, PDF parsing, KIE, and VQA |
 | [`demo/`](demo/) | Local browser demo and sample cases |
+| [`example_pics/`](example_pics/) | Example inputs, reference Markdown, and demo animations mirrored from the Hugging Face model repository |
 | [`pipeline/`](pipeline/) | Whole-page and region batch inference |
 | [`postprocess/`](postprocess/) | Shared table conversion, formula/text assembly and repetition handling |
-| [`workflows/`](workflows/) | Evaluation utilities |
 | [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
 | [Hugging Face Space](https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0/tree/main) | Space assets and project-page source |
 | [`examples/`](examples/) | MCP configuration example |
