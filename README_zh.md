@@ -135,7 +135,7 @@ python3 demo/server.py --port 8787
 
 ## 引用
 
-Xiaomi-OCR-0 技术报告的 arXiv 引用格式：
+如果你关注了我们的工作，请引用以下内容：
 
 ```bibtex
 @misc{chen2026xiaomiocr0technicalreport,

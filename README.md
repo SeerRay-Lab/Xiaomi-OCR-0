@@ -135,7 +135,7 @@ Mean is the arithmetic average of the five benchmarks on a 0–100 scale.
 
 ## Citation
 
-For the Xiaomi-OCR-0 technical report, use the arXiv citation:
+If you follow our work, please cite the following:
 
 ```bibtex
 @misc{chen2026xiaomiocr0technicalreport,
