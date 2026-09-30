@@ -4,6 +4,7 @@
 <p><a href="README.md">English</a> · <b>简体中文</b></p>
 <p>
   <a href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Hugging%20Face-Model-FFD21E?logo=huggingface&amp;logoColor=FFD21E" alt="Hugging Face Model"></a>
+  <a href="https://arxiv.org/abs/2609.36136"><img src="https://img.shields.io/badge/arXiv-2609.36136-b31b1b.svg" alt="arXiv:2609.36136"></a>
   <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Project-Page-FF6900?logo=huggingface&amp;logoColor=FFD21E" alt="Project Page"></a>
   <a href="https://github.com/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/GitHub-SeerRay--Lab%2FXiaomi--OCR--0-181717?logo=github" alt="GitHub"></a>
 </p>
@@ -131,3 +132,19 @@ python3 demo/server.py --port 8787
 平均分为这五项基准在 0–100 分尺度上的算术平均。
 
 批量推理见 [pipeline/README.md](pipeline/README.md)，公共前后处理见 [postprocess/README.md](postprocess/README.md)。
+
+## 引用
+
+Xiaomi-OCR-0 技术报告的 arXiv 引用格式：
+
+```bibtex
+@misc{chen2026xiaomiocr0technicalreport,
+      title={Xiaomi-OCR-0 Technical Report},
+      author={Xin Chen and Anan Du and Feng Feng and Pei Fu and Jian Luan and Longwei Xu and Shaojie Zhang and Hang Li and Heng Qu and Cheng Tan},
+      year={2026},
+      eprint={2609.36136},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2609.36136},
+}
+```

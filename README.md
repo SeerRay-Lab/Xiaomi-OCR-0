@@ -4,6 +4,7 @@
 <p><b>English</b> · <a href="README_zh.md">简体中文</a></p>
 <p>
   <a href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Hugging%20Face-Model-FFD21E?logo=huggingface&amp;logoColor=FFD21E" alt="Hugging Face Model"></a>
+  <a href="https://arxiv.org/abs/2609.36136"><img src="https://img.shields.io/badge/arXiv-2609.36136-b31b1b.svg" alt="arXiv:2609.36136"></a>
   <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Project-Page-FF6900?logo=huggingface&amp;logoColor=FFD21E" alt="Project Page"></a>
   <a href="https://github.com/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/GitHub-SeerRay--Lab%2FXiaomi--OCR--0-181717?logo=github" alt="GitHub"></a>
 </p>
@@ -131,3 +132,19 @@ All three columns report Overall scores.
 | MiniCPM-V-4.5 | 8B | 84.9 | 69.6 | 87.4 | 89.0 | 82.2 | 82.6 |
 
 Mean is the arithmetic average of the five benchmarks on a 0–100 scale.
+
+## Citation
+
+For the Xiaomi-OCR-0 technical report, use the arXiv citation:
+
+```bibtex
+@misc{chen2026xiaomiocr0technicalreport,
+      title={Xiaomi-OCR-0 Technical Report},
+      author={Xin Chen and Anan Du and Feng Feng and Pei Fu and Jian Luan and Longwei Xu and Shaojie Zhang and Hang Li and Heng Qu and Cheng Tan},
+      year={2026},
+      eprint={2609.36136},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2609.36136},
+}
+```
