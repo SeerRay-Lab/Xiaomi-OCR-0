@@ -13,6 +13,7 @@ import base64
 import importlib.util
 import json
 import mimetypes
+import math
 import os
 import sys
 import threading
@@ -86,10 +87,17 @@ LOCAL_MODEL_URL = os.environ.get("XIAOMI_OCR_LOCAL_URL", "http://127.0.0.1:8000/
 LOCAL_MODEL = os.environ.get("XIAOMI_OCR_MODEL", "SeerRay-Lab/Xiaomi-OCR-0").strip()
 
 _MCP_MODULE = None
+_MCP_LOCK = threading.Lock()
 
 
 def mcp_pipeline(model_url: str | None = None, model: str | None = None):
     """Load the shared Skill implementation so Demo and MCP use the same transforms."""
+    global _MCP_MODULE
+    with _MCP_LOCK:
+        return _load_mcp_pipeline()
+
+
+def _load_mcp_pipeline():
     global _MCP_MODULE
     if _MCP_MODULE is None:
         source = ROOT.parent / "skills" / "xiaomi-ocr" / "mcp_ocr_server.py"
@@ -100,6 +108,45 @@ def mcp_pipeline(model_url: str | None = None, model: str | None = None):
         spec.loader.exec_module(module)
         _MCP_MODULE = module
     return _MCP_MODULE
+
+
+def validate_request(req):
+    """Reject malformed API input before opening a stream or launching a job."""
+    if not isinstance(req, dict):
+        raise ValueError("request body must be a JSON object")
+    for key in ("task", "prompt", "fields", "question", "mode", "image_base64",
+                "image_mime", "pdf_base64", "pdf_name", "sample"):
+        if key in req and not isinstance(req[key], str):
+            raise ValueError(f"{key} must be a string")
+    for key, low, high in (("max_tokens", 1, 16384), ("concurrency", 1, 32),
+                           ("dpi", 36, 300), ("max_pages", 1, 10000)):
+        if key not in req or (key == "max_pages" and req[key] is None):
+            continue
+        value = req[key]
+        if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+            raise ValueError(f"{key} must be an integer between {low} and {high}")
+    if "temperature" in req:
+        value = req["temperature"]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 2:
+            raise ValueError("temperature must be a number between 0 and 2")
+    if "task" in req:
+        req["task"] = req["task"].strip().lower()
+        if req["task"] not in {"document", "kie", "vqa"}:
+            raise ValueError("task must be document, kie, or vqa")
+    return req
+
+
+def model_health():
+    """Probe the configured model; a running demo alone does not imply inference is ready."""
+    mcp = mcp_pipeline()
+    base = mcp._local_url(LOCAL_MODEL_URL)
+    base = base.removesuffix("/chat/completions").rstrip("/")
+    url = base + ("/models" if base.endswith("/v1") else "/v1/models")
+    with urllib.request.urlopen(url, timeout=3) as response:
+        models = json.load(response).get("data", [])
+    ready = any(model.get("id") == LOCAL_MODEL for model in models)
+    return {"ready": ready, "model": LOCAL_MODEL,
+            "error": "" if ready else "Configured model is not listed by the inference server"}
 
 
 _LAYOUT_MODEL = None
@@ -479,19 +526,20 @@ def _run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
         return
 
     try:
-        doc = pdfium.PdfDocument(str(pdf_path))
+        with mcp_pipeline()._PDF_LOCK, pdfium.PdfDocument(str(pdf_path)) as doc:
+            total_pdf = len(doc)
     except Exception as e:  # noqa: BLE001
         job_update(jid, status="error", error=f"PDF open failed: {e}")
         return
 
-    total = len(doc) if max_pages is None else min(len(doc), max_pages)
+    total = total_pdf if max_pages is None else min(total_pdf, max_pages)
     pages_dir = BOOK_TMP / jid / "pages"
     pages_dir.mkdir(parents=True, exist_ok=True)
     job_update(
         jid,
         status="running",
         total=total,
-        total_pdf=len(doc),
+        total_pdf=total_pdf,
         done=0,
         current=0,
         pages_ok=0,
@@ -506,23 +554,17 @@ def _run_book_job(jid: str, pdf_path: Path, model_url: str, model: str,
 
     # ── Phase 1: render all pages locally (fast) ──
     page_pngs: list[bytes] = []
-    try:
-        rendered_pages = mcp_pipeline()._render_pdf(pdf_path.read_bytes(), max_pages, dpi)
-        for i in range(total):
-            job = job_get(jid) or {}
-            if job.get("cancel"):
-                job_update(jid, status="cancelled")
-                return
-            job_update(jid, current=i + 1, phase="render",
-                       phase_label=f"渲染 {i + 1}/{total}")
-            page_png = pages_dir / f"p{i + 1:04d}.png"
-            page_png.write_bytes(rendered_pages[i])
-            page_pngs.append(rendered_pages[i])
-    finally:
-        try:
-            doc.close()
-        except Exception:  # noqa: BLE001
-            pass
+    rendered_pages = mcp_pipeline()._render_pdf(pdf_path.read_bytes(), max_pages, dpi)
+    for i in range(total):
+        job = job_get(jid) or {}
+        if job.get("cancel"):
+            job_update(jid, status="cancelled")
+            return
+        job_update(jid, current=i + 1, phase="render",
+                   phase_label=f"渲染 {i + 1}/{total}")
+        page_png = pages_dir / f"p{i + 1:04d}.png"
+        page_png.write_bytes(rendered_pages[i])
+        page_pngs.append(rendered_pages[i])
 
     if job_get(jid, ).get("cancel"):
         job_update(jid, status="cancelled")
@@ -646,6 +688,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/health":
+            try:
+                return self._json(200, model_health())
+            except Exception as exc:
+                return self._json(200, {"ready": False, "model": LOCAL_MODEL, "error": str(exc)})
         if path in ("/", "/index.html"):
             self.path = "/index.html"
             return super().do_GET()
@@ -745,6 +792,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/export":
+            return self._handle_export()
         if path == "/api/ocr":
             return self._handle_ocr()
         if path == "/api/ocr/stream":
@@ -757,10 +806,34 @@ class Handler(SimpleHTTPRequestHandler):
             return self._handle_book_start()
         if path.startswith("/api/book/") and path.endswith("/cancel"):
             jid = path.split("/")[-2]
+            if not job_get(jid):
+                return self._json(404, {"error": "job not found"})
             job_update(jid, cancel=True)
             self._json(200, {"ok": True})
             return
         self.send_error(404, "not found")
+
+    def _handle_export(self):
+        """Serve an attachment over HTTP, including in browsers without blob downloads."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+            if not 0 < length <= MAX_BODY:
+                raise ValueError("invalid export size")
+            form = urllib.parse.parse_qs(self.rfile.read(length).decode("utf-8"), max_num_fields=4)
+            content = form.get("content", [""])[0]
+            extension = form.get("format", ["md"])[0]
+            if not content or extension not in {"md", "json"}:
+                raise ValueError("export requires content and md/json format")
+        except (ValueError, UnicodeDecodeError) as exc:
+            return self._json(400, {"error": str(exc)})
+        data = content.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Disposition", f'attachment; filename="xiaomi-ocr-result.{extension}"')
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _read_json(self) -> dict | None:
         try:
@@ -772,9 +845,9 @@ class Handler(SimpleHTTPRequestHandler):
             return None
         body = self.rfile.read(length)
         try:
-            return json.loads(body)
-        except json.JSONDecodeError:
-            self._json(400, {"error": "request body must be JSON"})
+            return validate_request(json.loads(body))
+        except (ValueError, UnicodeDecodeError) as exc:
+            self._json(400, {"error": str(exc)})
             return None
 
     def _handle_ocr(self):
@@ -958,6 +1031,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if delta:
                     full_text += delta
                     sse("delta", {"t": delta})
+            if finish_reason is None:
+                raise RuntimeError("Inference stream ended without a completion marker; retry the request")
             if finish_reason == "length" or not full_text.strip():
                 raise RuntimeError("Model output was truncated or empty")
             sse("done", {
@@ -1166,7 +1241,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _save_upload(self, b64: str, name: str) -> Path:
         try:
-            data = base64.b64decode(b64)
+            data = base64.b64decode(b64, validate=True)
         except Exception as e:  # noqa: BLE001
             raise RuntimeError(f"invalid base64: {e}") from e
         BOOK_TMP.mkdir(parents=True, exist_ok=True)

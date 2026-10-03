@@ -80,8 +80,10 @@ Wait for the server to finish loading the model before continuing.
 Open a second terminal in the repository directory and run:
 
 ```bash
-python3 -m pip install -r requirements.txt
-python3 demo/server.py --port 8787
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python demo/server.py --port 8787
 ```
 
 Open <http://127.0.0.1:8787>. The same browser page supports whole-page/region document parsing, KIE, VQA, and PDF parsing. Install the shared requirements above, including Pillow and `pypdfium2` for images and PDFs. Region mode optionally needs PaddlePaddle/PaddleX and PP-DocLayoutV3 weights. See [demo/README.md](demo/README.md) for dependencies and [INSTALL.md](INSTALL.md) for MCP setup.

@@ -19,6 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import closing
 from pathlib import Path
 
 # A standalone Skill installation must point at a complete repository checkout.
@@ -30,7 +31,7 @@ from postprocess.otsl import convert_otsl_to_html
 
 OCR_BASE = os.environ.get("XIAOMI_OCR_LOCAL_URL", "http://127.0.0.1:8000/v1").strip().rstrip("/")
 OCR_MODEL = os.environ.get("XIAOMI_OCR_MODEL", "SeerRay-Lab/Xiaomi-OCR-0").strip()
-MAX_TOKENS = int(os.environ.get("XIAOMI_OCR_MAX_TOKENS", "16384"))
+MAX_TOKENS = int(os.environ.get("XIAOMI_OCR_MAX_TOKENS", "4096"))
 CONCURRENCY = max(1, min(int(os.environ.get("XIAOMI_OCR_CONCURRENCY", "8")), 32))
 LAYOUT_THRESHOLD = float(os.environ.get("XIAOMI_OCR_LAYOUT_THRESHOLD", "0.3"))
 
@@ -211,6 +212,9 @@ def ocr_image(image_path: str | None = None, image_url: str | None = None,
     return {"mode": "region", "regions": len(regions), "markdown": assemble_regions(regions, results)}
 
 
+_PDF_LOCK = threading.Lock()
+
+
 def _render_pdf(raw: bytes, max_pages: int | None, dpi: int) -> list[bytes]:
     if dpi <= 0 or (max_pages is not None and max_pages < 1):
         raise ValueError("dpi and max_pages must be positive")
@@ -220,19 +224,26 @@ def _render_pdf(raw: bytes, max_pages: int | None, dpi: int) -> list[bytes]:
         import pypdfium2 as pdfium
     except ImportError as exc:
         raise RuntimeError("PDF support needs pypdfium2; install requirements.txt") from exc
-    doc = pdfium.PdfDocument(raw)
-    count = len(doc) if max_pages is None else min(len(doc), max_pages)
-    pages = []
-    for i in range(count):
-        image = doc[i].render(scale=dpi/72).to_pil().convert("RGB")
-        if image.width > 2200:
-            scale = 2200 / image.width
-            image = image.resize((2200, int(image.height * scale)), __import__("PIL.Image", fromlist=["Image"]).Resampling.LANCZOS)
-        out = io.BytesIO()
-        image.save(out, "PNG")
-        pages.append(out.getvalue())
-    doc.close()
-    return pages
+    # PDFium is not thread-safe, even for separate documents. Serialize rendering,
+    # then release the lock before the much slower concurrent model requests.
+    with _PDF_LOCK, pdfium.PdfDocument(raw) as doc:
+        count = len(doc) if max_pages is None else min(len(doc), max_pages)
+        pages = []
+        for i in range(count):
+            with closing(doc[i]) as page:
+                bitmap = page.render(scale=dpi / 72)
+                try:
+                    image = bitmap.to_pil().convert("RGB")
+                finally:
+                    bitmap.close()
+            if image.width > 2200:
+                scale = 2200 / image.width
+                image = image.resize((2200, int(image.height * scale)), __import__("PIL.Image", fromlist=["Image"]).Resampling.LANCZOS)
+            out = io.BytesIO()
+            image.save(out, "PNG")
+            pages.append(out.getvalue())
+        return pages
+
 
 
 def ocr_pdf(pdf_path: str | None = None, pdf_base64: str | None = None,

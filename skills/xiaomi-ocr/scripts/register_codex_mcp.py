@@ -2,13 +2,30 @@
 """Register the installed Xiaomi-OCR MCP server in the current user's Codex config."""
 from __future__ import annotations
 
-import json
 import os
-import re
 import sys
 import tempfile
 import tomlkit
 from pathlib import Path
+
+
+def updated_config(original, python, server_path, endpoint, model, repo):
+    document = tomlkit.parse(original)
+    servers = document.setdefault("mcp_servers", tomlkit.table())
+    entry = servers.setdefault("xiaomi-ocr", tomlkit.table())
+    # Replacing an earlier HTTP registration must not leave two transports.
+    for key in ("url", "bearer_token_env_var", "http_headers", "env_http_headers", "transport"):
+        entry.pop(key, None)
+    entry["command"] = str(python)
+    entry["args"] = [str(server_path)]
+    env = entry.setdefault("env", tomlkit.table())
+    env["XIAOMI_OCR_LOCAL_URL"] = endpoint
+    env["XIAOMI_OCR_MODEL"] = model
+    env["XIAOMI_OCR_REPO"] = str(repo)
+    updated = tomlkit.dumps(document)
+    tomlkit.parse(updated)
+
+    return updated
 
 
 def main() -> int:
@@ -34,17 +51,8 @@ def main() -> int:
         return 1
 
     original = config.read_text(encoding="utf-8") if config.exists() else ""
-    document = tomlkit.parse(original)
-    servers = document.setdefault("mcp_servers", tomlkit.table())
-    entry = servers.setdefault("xiaomi-ocr", tomlkit.table())
-    entry["command"] = str(python)
-    entry["args"] = [str(skill_dir / "mcp_ocr_server.py")]
-    env = entry.setdefault("env", tomlkit.table())
-    env["XIAOMI_OCR_LOCAL_URL"] = endpoint
-    env["XIAOMI_OCR_MODEL"] = model
-    env["XIAOMI_OCR_REPO"] = os.environ.get("XIAOMI_OCR_REPO", str(skill_dir.parents[1]))
-    updated = tomlkit.dumps(document)
-    tomlkit.parse(updated)
+    updated = updated_config(original, python, skill_dir / "mcp_ocr_server.py", endpoint, model,
+                             os.environ.get("XIAOMI_OCR_REPO", str(skill_dir.parents[1])))
 
     config.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix="config.toml.", dir=config.parent)

@@ -87,3 +87,11 @@ for optional offline conversion; it is not a required agent step.
 ## Batch evaluation
 
 The restored [pipeline commands](pipeline/README.md) and [postprocessing modules](postprocess/README.md) share the document assembly used by MCP and the Demo. Install `requirements.txt` for batch inference.
+
+### Output budget and existing Codex entries
+
+The MCP default output budget is 4096 tokens, leaving room for image/prompt tokens
+inside the documented 16384-token context. Override `XIAOMI_OCR_MAX_TOKENS` only
+when the model context can accommodate both the input and requested output.
+Re-registering a previous HTTP `xiaomi-ocr` entry replaces its transport with stdio;
+other MCP servers, custom environment variables, and tool preferences are preserved.

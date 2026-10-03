@@ -10,3 +10,6 @@ demo/out/
 
 # Local evaluation outputs
 evaluate_report.json
+
+# Generated machine-specific MCP registration
+skills/xiaomi-ocr/mcp-config.json

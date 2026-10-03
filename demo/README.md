@@ -7,8 +7,10 @@ A compact local web UI for document parsing, key information extraction (KIE), O
 Start Xiaomi-OCR-0 with SGLang or vLLM on `127.0.0.1:8000`, then from the repository root run:
 
 ```bash
-python3 -m pip install -r requirements.txt
-python3 demo/server.py --port 8787
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python demo/server.py --port 8787
 ```
 
 Open <http://127.0.0.1:8787>. Set `XIAOMI_OCR_LOCAL_URL` if the inference server uses another local port. The demo only accepts loopback inference URLs.
@@ -33,3 +35,20 @@ Whole-page mode does **not** need PaddleX or PP-DocLayoutV3. Region mode uses PP
 - [PP-DocLayoutV3 model card and weights](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3)
 
 Choose the CPU/GPU package from the official compatibility guidance for the machine that will run the demo. This optional layout runtime is separate from the Xiaomi-OCR-0 model runtime.
+
+## Model configuration and troubleshooting
+
+If your inference runtime uses a custom served model name, set `XIAOMI_OCR_MODEL`
+to the exact ID returned by its `/v1/models` endpoint. `XIAOMI_OCR_LOCAL_URL`
+defaults to `http://127.0.0.1:8000/v1`. Both variables must be set in the terminal
+that launches the demo. The connection indicator checks the configured model via
+`GET /api/health`; it does not imply that optional layout dependencies are installed.
+
+The default output budget is 4096 tokens. Input image tokens and the prompt also
+consume context, so setting the output budget equal to a 16384-token context will
+fail. Increase the budget only if the model has enough remaining context.
+
+The UI includes explicit run/upload actions, rendered/raw/JSON views, copy and
+result downloads, and a mobile layout. Samples are the repository's real receipt,
+dense-equations and Qianziwen images. The handwritten-formula example is excluded.
+Live failures remain errors; the demo does not silently replace them with cached results.

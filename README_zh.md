@@ -80,8 +80,10 @@ vllm serve SeerRay-Lab/Xiaomi-OCR-0 \
 在仓库目录中另开一个终端，运行：
 
 ```bash
-python3 -m pip install -r requirements.txt
-python3 demo/server.py --port 8787
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python demo/server.py --port 8787
 ```
 
 打开 <http://127.0.0.1:8787>。同一网页支持整页/区域文档解析、KIE、VQA 和 PDF 解析。上述 `requirements.txt` 已包含图像、PDF 和公共后处理所需依赖。区域模式可选依赖 PaddlePaddle/PaddleX 与 PP-DocLayoutV3 权重。依赖说明见 [demo/README.md](demo/README.md)，MCP 安装说明见 [INSTALL.md](INSTALL.md)。

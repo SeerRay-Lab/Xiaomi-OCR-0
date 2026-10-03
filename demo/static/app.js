@@ -30,7 +30,7 @@ function applyTheme(t) {
 }
 (function () {
   let t = localStorage.getItem(THEME_KEY);
-  if (!t) t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  if (!t) t = "light";
   applyTheme(t);
 })();
 $("btnTheme").onclick = function () {
@@ -53,10 +53,13 @@ function cfg() { return loadCfg(); }
 
 /* ── optional result views: RAW / JSON stay hidden unless enabled in settings ── */
 const VIEW_KEY = "xiaomi-ocr-show-views";
-function showViews() { return localStorage.getItem(VIEW_KEY) === "1"; }
+function showViews() { return localStorage.getItem(VIEW_KEY) !== "0"; }
 function recordResult(text, meta) {
   state.lastText = String(text || "");
   state.lastMeta = meta || null;
+  state.lastTask = state.task;
+  $("btnCopy").disabled = !state.lastText;
+  $("btnDownload").disabled = !state.lastText;
 }
 function paintResult() {
   const el = $("resText");
@@ -64,11 +67,13 @@ function paintResult() {
   const v = state.view || "pretty";
   if (v === "raw") {
     el.classList.remove("markdown");
-    el.classList.add("typing");
+    el.classList.remove("typing");
+    el.classList.add("source-view");
     el.textContent = state.lastText;
   } else if (v === "json") {
     el.classList.remove("markdown");
-    el.classList.add("typing");
+    el.classList.remove("typing");
+    el.classList.add("source-view");
     el.textContent = JSON.stringify({
       model: (state.lastMeta && state.lastMeta.model) || "SeerRay-Lab/Xiaomi-OCR-0",
       latency_ms: state.lastMeta ? state.lastMeta.latency_ms : null,
@@ -76,9 +81,9 @@ function paintResult() {
       content: state.lastText,
     }, null, 2);
   } else {
-    el.classList.remove("typing");
+    el.classList.remove("typing", "source-view");
     el.classList.add("markdown");
-    el.innerHTML = renderMarkdown(normalizeOcrOutput(state.lastText));
+    el.innerHTML = state.lastTask === "kie" ? "<pre><code>" + escapeHtml(state.lastText) + "</code></pre>" : renderMarkdown(normalizeOcrOutput(state.lastText));
   }
   const pane = $("resPane");
   if (pane) pane.scrollTop = 0;
@@ -87,6 +92,7 @@ function setView(v) {
   state.view = v;
   document.querySelectorAll("#viewSeg button").forEach(function (b) {
     b.classList.toggle("active", b.dataset.view === v);
+    b.setAttribute("aria-pressed", String(b.dataset.view === v));
   });
   paintResult();
 }
@@ -118,10 +124,18 @@ function applyViewVisibility() {
 function openDrawer() {
   const c = cfg();
   $("cfgMaxTokens").value = c.max_tokens;
+  $("drawer").hidden = false;
+  $("backdrop").hidden = false;
+  document.querySelector(".shell").inert = true;
+  $("cfgMaxTokens").focus();
   $("drawer").classList.add("open");
   $("backdrop").classList.add("open");
 }
 function closeDrawer() {
+  $("drawer").hidden = true;
+  $("backdrop").hidden = true;
+  document.querySelector(".shell").inert = false;
+  $("btnSettings").focus();
   $("drawer").classList.remove("open");
   $("backdrop").classList.remove("open");
 }
@@ -130,12 +144,14 @@ $("btnCloseSettings").onclick = closeDrawer;
 $("btnCancelCfg").onclick = closeDrawer;
 $("backdrop").onclick = closeDrawer;
 $("btnSaveCfg").onclick = function () {
+  if (!$("cfgMaxTokens").reportValidity()) return;
   saveCfg({
     max_tokens: Number($("cfgMaxTokens").value || 4096),
     temperature: 0,
   });
   localStorage.setItem(VIEW_KEY, $("cfgShowViews") && $("cfgShowViews").checked ? "1" : "0");
   applyViewVisibility();
+  paintResult();
   closeDrawer();
 };
 
@@ -154,7 +170,7 @@ function setLed(mode) {
   if (!seg) return;
   seg.addEventListener("click", function (e) {
     const b = e.target.closest("button");
-    if (!b || state.task !== "document" || b.disabled) return;
+    if (!b || state.busy || state.task !== "document" || b.disabled) return;
     state.mode = b.dataset.mode;
     seg.querySelectorAll("button").forEach(function (x) {
       x.classList.toggle("active", x.dataset.mode === state.mode);
@@ -162,6 +178,9 @@ function setLed(mode) {
     $("stageHint").textContent = state.mode === "region"
       ? "REGION · layout + parallel"
       : "CLICK TO PARSE";
+    updateTaskInputs();
+    resetResult();
+    clearError();
   });
 })();
 
@@ -174,7 +193,8 @@ function updateTaskInputs() {
   $("vqaQuestionWrap").hidden = state.task !== "vqa";
   $("regionPromptNote").hidden = !region;
   document.querySelectorAll("#modeSeg button").forEach(function (b) {
-    b.disabled = !isDoc;
+    b.disabled = !isDoc || state.busy;
+    b.setAttribute("aria-pressed", String(b.dataset.mode === state.mode));
     b.classList.toggle("active", b.dataset.mode === state.mode);
   });
   if (isPdf && !isDoc) {
@@ -184,6 +204,7 @@ function updateTaskInputs() {
     showError("PDF 目前用于文档解析；KIE 和 VQA 请上传或选择图像。");
     return;
   }
+  document.querySelectorAll("#taskSeg button").forEach(b => { b.classList.toggle("active", b.dataset.task === state.task); b.setAttribute("aria-pressed", String(b.dataset.task === state.task)); });
   $("stageHint").textContent = isPdf ? (region ? "PDF · REGION PARSING" : "PDF · PAGE PARSING") : (region ? "REGION · layout + parallel" : "CLICK TO PARSE");
 }
 
@@ -193,11 +214,13 @@ function updateTaskInputs() {
   seg.addEventListener("click", function (e) {
     const b = e.target.closest("button[data-task]");
     if (!b || state.busy) return;
+    if (state.custom && state.custom.isPdf && b.dataset.task !== "document") { showError("PDF 支持文档解析；字段提取和问答请选择图像。"); return; }
     state.task = b.dataset.task;
     if (state.task !== "document") state.mode = "page";
     seg.querySelectorAll("button").forEach(function (x) { x.classList.toggle("active", x === b); });
     document.querySelectorAll("#modeSeg button").forEach(function (x) { x.classList.toggle("active", x.dataset.mode === state.mode); });
     updateTaskInputs();
+    seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.task === state.task)));
     resetResult();
     clearError();
   });
@@ -210,7 +233,7 @@ async function runRegionOcr(dataUrl) {
   const c = cfg();
   const body = {
     image_base64: dataUrl,
-    max_tokens: Math.max(1024, Math.min(c.max_tokens || 2048, 4096)),
+    max_tokens: Math.max(1, Math.min(c.max_tokens || 2048, 4096)),
     concurrency: 16,
   };
   const res = await fetch("/api/parse/regions", {
@@ -532,6 +555,27 @@ function sanitizeLatex(t) {
   return s;
 }
 
+// Rebuild only table markup. Model output must never become executable HTML.
+function sanitizeTable(html) {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const allowed = new Set(["TABLE", "THEAD", "TBODY", "TFOOT", "TR", "TH", "TD", "CAPTION", "BR", "B", "STRONG", "EM", "I", "SUB", "SUP"]);
+  function clean(node) {
+    if (node.nodeType === 3) return escapeHtml(node.textContent);
+    if (node.nodeType !== 1) return "";
+    if (!allowed.has(node.tagName)) return escapeHtml(node.textContent);
+    const tag = node.tagName.toLowerCase();
+    let attrs = "";
+    if (tag === "td" || tag === "th") ["colspan", "rowspan"].forEach(key => {
+      const value = node.getAttribute(key);
+      if (/^[1-9][0-9]{0,2}$/.test(value || "")) attrs += " " + key + '=\"' + value + '\"';
+    });
+    if (tag === "br") return "<br>";
+    return "<" + tag + attrs + ">" + Array.from(node.childNodes).map(clean).join("") + "</" + tag + ">";
+  }
+  return Array.from(template.content.childNodes).map(clean).join("");
+}
+
 function renderMarkdown(md) {
   md = sanitizeLatex(md);
   let src = String(md || "");
@@ -545,7 +589,7 @@ function renderMarkdown(md) {
 
   const htmls = [];
   src = src.replace(/(<table[\s\S]*?<\/table>)/gi, function (m) {
-    htmls.push(m);
+    htmls.push(sanitizeTable(m));
     return "\u0000HTML" + (htmls.length - 1) + "\u0000";
   });
 
@@ -679,7 +723,7 @@ function showError(msg) {
   const b = $("errorBanner");
   b.textContent = msg;
   b.classList.add("show");
-  setTimeout(function () { b.classList.remove("show"); }, 6000);
+
 }
 function clearError() {
   $("errorBanner").classList.remove("show");
@@ -744,31 +788,29 @@ function typeResult(rawText) {
 }
 
 function resetResult() {
+  paintPills();
   stopTyping();
   state.typedDone = false;
   state.lastText = "";
   state.lastMeta = null;
+  $("btnCopy").disabled = true;
+  $("btnDownload").disabled = true;
+  $("resText").classList.remove("source-view", "typing");
   $("resText").style.display = "none";
   $("resText").innerHTML = "";
   $("resEmpty").style.display = "flex";
-  $("badgeRight").textContent = "IDLE";
+  $("badgeRight").textContent = "待解析";
   $("badgeRight").className = "badge";
   $("sideHint").textContent = "点击画面开始解析";
   const hint = $("clickHint");
   if (hint) { hint.textContent = "点击图片 · 开始解析"; hint.style.opacity = ""; }
 }
 
-function paintPills(item) {
-  if (!item || !item.ok) {
-    $("pillLat").textContent = "—";
-    $("pillTok").textContent = "—";
-    $("pillModeText").textContent = "—"; setLed("off");
-    return;
-  }
-  const u = item.usage || {};
-  $("pillLat").innerHTML = "LATENCY <b>" + item.latency_ms + "ms</b>";
-  $("pillTok").innerHTML = "TOKENS <b>" + (u.completion_tokens != null ? u.completion_tokens : "—") + "</b>";
-  $("pillModeText").textContent = "PRECOMPUTED"; setLed("on");
+function paintPills() {
+  $("pillLat").textContent = "耗时 —";
+  $("pillTok").textContent = "TOKENS —";
+  $("pillModeText").textContent = "待解析";
+  setLed("off");
 }
 
 function renderThumbs() {
@@ -793,8 +835,7 @@ function renderThumbs() {
     b.dataset.id = item.id;
     b.innerHTML =
       '<img src="' + item.image + '" alt="' + escapeHtml(item.title) + '" loading="lazy" />' +
-      '<span class="lat">' + (item.ok ? item.latency_ms + "ms" : "ERR") + "</span>" +
-      '<span class="cap">' + escapeHtml(item.title) + "</span>";
+      '<span class="cap">' + escapeHtml(item.title) + '<small>' + escapeHtml(item.desc || '') + '</small></span>';
     b.onclick = function () { selectItem(item.id); };
     host.appendChild(b);
   });
@@ -802,7 +843,8 @@ function renderThumbs() {
 
 $("imgUpload").onchange = function () {
   const f = this.files && this.files[0];
-  if (!f) return;
+  if (!f || state.busy) return;
+  if (f.size > 55 * 1024 * 1024) { showError("文件超过 55 MiB，请压缩或拆分后重试。"); this.value = ""; return; }
   const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
   if (!isPdf && (!f.type || f.type.indexOf("image/") !== 0)) {
     showError("请选择图像或 PDF 文件");
@@ -832,6 +874,7 @@ $("imgUpload").onchange = function () {
   }
   const r = new FileReader();
   r.onload = function () {
+    if (state.busy) return;
     state.custom = { name: f.name, dataUrl: r.result, size: f.size, isPdf: false };
     state.activeId = "custom";
     document.querySelectorAll(".film").forEach(function (el) { el.classList.remove("active"); });
@@ -859,7 +902,9 @@ function itemById(id) {
 
 function selectItem(id) {
   const item = itemById(id);
-  if (!item) return;
+  if (!item || state.busy) return;
+  $("stageTitle").textContent = item.title;
+  clearError();
   stopTyping();
   state.activeId = id;
   state.custom = null;
@@ -876,9 +921,7 @@ function selectItem(id) {
   paintPills(item);
   updateTaskInputs();
   resetResult();
-  if (!item.ok) {
-    showError(item.error || "预跑失败");
-  }
+
 }
 
 /* Live OCR for custom upload */
@@ -901,7 +944,7 @@ async function streamLiveOcr(dataUrl, onDelta, prompt, task) {
     fields: $("kieFields").value || "",
     question: $("vqaQuestion").value || "",
     temperature: 0,
-    max_tokens: task === "vqa" ? 1024 : Math.max(2048, c.max_tokens || 4096),
+    max_tokens: task === "vqa" ? 1024 : Math.max(1, Math.min(16384, c.max_tokens || 4096)),
   };
   const ac = new AbortController();
   const timer = setTimeout(function () { ac.abort(); }, 90000);
@@ -985,7 +1028,7 @@ async function streamRegionOcr(dataUrl, handlers) {
   const c = cfg();
   const body = {
     image_base64: dataUrl,
-    max_tokens: Math.max(1024, Math.min(c.max_tokens || 2048, 4096)),
+    max_tokens: Math.max(1, Math.min(c.max_tokens || 2048, 4096)),
     concurrency: 16,
   };
   const ac = new AbortController();
@@ -1142,7 +1185,7 @@ async function runPdfParse(file) {
     await new Promise(function (resolve) { setTimeout(resolve, 800); });
     const res = await fetch("/api/book/" + encodeURIComponent(started.id));
     status = await res.json();
-    if (!res.ok || status.error) throw new Error(status.error || "读取 PDF 任务状态失败");
+    if (!res.ok) throw new Error(status.error || "读取 PDF 任务状态失败");
     const total = status.total || 0;
     const done = status.done || 0;
     const percent = total ? Math.round(done * 100 / total) : 0;
@@ -1152,13 +1195,13 @@ async function runPdfParse(file) {
     $("pillModeText").textContent = "PDF · " + done + "/" + (total || "…");
     if (["done", "error", "cancelled"].includes(status.status)) break;
   }
-  if (status.status !== "done") throw new Error(status.error || "PDF 解析未完成");
+  if (status.status !== "done" && !status.has_markdown) throw new Error(status.error || "PDF 解析未完成");
   $("taskProgressFill").style.width = "100%";
   const rawRes = await fetch("/api/book/" + encodeURIComponent(started.id) + "/raw");
   const raw = await rawRes.json();
   if (!rawRes.ok || raw.error) throw new Error(raw.error || "读取解析结果失败");
   return { content: raw.markdown || "", latency_ms: raw.elapsed_ms || status.elapsed_ms || 0,
-    usage: status.usage || {}, model: status.model || "SeerRay-Lab/Xiaomi-OCR-0", pages: status.total || 0 };
+    usage: status.usage || {}, model: status.model || "SeerRay-Lab/Xiaomi-OCR-0", pages: status.total || 0, warning: status.status !== "done" ? (status.error || "部分页面未完成") : "" };
 }
 
 function formatKieResult(rawText) {
@@ -1177,12 +1220,16 @@ function formatKieResult(rawText) {
 $("srcPane").onclick = async function () {
   if (state.busy) return;
   const item = itemById(state.activeId);
-  const fallback = item && item.ok ? item.result : null;
+
   const isPdf = !!(state.custom && state.custom.isPdf);
   const task = state.task;
   const useRegion = task === "document" && state.mode === "region";
 
-  state.busy = true;
+  if (!item && !state.custom) { showError("请先选择样例或上传文件。"); return; }
+  if (task === "vqa" && !$("vqaQuestion").value.trim()) { showError("请先输入你的问题。"); $("vqaQuestion").focus(); return; }
+  clearError();
+  resetResult();
+  setBusy(true);
   firePulse();
   $("imgWrap").classList.add("thinking");
   const hint = $("clickHint");
@@ -1194,7 +1241,7 @@ $("srcPane").onclick = async function () {
 
   stopTyping();
   const el = $("resText");
-  el.classList.remove("markdown");
+  el.classList.remove("markdown", "source-view");
   el.classList.add("typing");
   el.style.display = "block";
   el.textContent = "";
@@ -1207,6 +1254,7 @@ $("srcPane").onclick = async function () {
       el.classList.remove("typing");
       el.classList.add("markdown");
       recordResult(data.content, data);
+      if (data.warning) showError("部分 PDF 页面失败，已保留可下载的结果：" + data.warning);
       el.innerHTML = renderMarkdown(normalizeOcrOutput(data.content));
       $("pillLat").innerHTML = "LATENCY <b>" + ((data.latency_ms || 0) / 1000).toFixed(2) + "s</b>";
       $("pillTok").innerHTML = "TOKENS <b>" + ((data.usage && data.usage.completion_tokens) || "—") + "</b>";
@@ -1286,15 +1334,6 @@ $("srcPane").onclick = async function () {
       }
     }
   } catch (e) {
-    if (fallback && !useRegion && task === "document" && !isPdf) {
-      el.classList.remove("typing");
-      typeResult(fallback);
-      $("pillModeText").textContent = "PRECOMPUTED"; setLed("on");
-      $("sideHint").textContent = "预跑结果";
-      $("stageHint").textContent = "PRECOMPUTED";
-      if (hint) { hint.textContent = "点击解析"; hint.style.opacity = ""; }
-      showError("实时流式失败，已回退预跑结果：" + (e.message || e));
-    } else {
       el.classList.remove("typing");
       el.textContent = "";
       $("resEmpty").style.display = "flex";
@@ -1305,9 +1344,9 @@ $("srcPane").onclick = async function () {
       $("sideHint").textContent = isPdf ? "确认 PDF 依赖与本机模型已就绪" : "确认本机模型和区域识别依赖已启动";
       $("stageHint").textContent = "ERROR";
       if (hint) { hint.textContent = "点击重试"; hint.style.opacity = ""; }
-    }
   } finally {
-    state.busy = false;
+    setBusy(false);
+    if (state.lastText) { $("badgeRight").textContent = state.lastMeta && state.lastMeta.warning ? "部分完成" : "已完成"; paintResult(); }
     $("imgWrap").classList.remove("thinking");
     if (isPdf) setTimeout(function () { $("taskProgress").hidden = true; }, 1100);
   }
@@ -1320,7 +1359,8 @@ function loadShowcase() {
     .then(function (data) {
       state.items = (data && data.items) || [];
       renderThumbs();
-      const first = state.items.filter(function (x) { return x.ok; })[0];
+      $("sampleCount").textContent = state.items.length + " 个样例";
+      const first = state.items[0];
       if (first) selectItem(first.id);
     })
     .catch(function (e) {
@@ -1332,6 +1372,8 @@ function loadShowcase() {
 (function init() {
   if (!localStorage.getItem(LS_KEY)) localStorage.setItem(LS_KEY, JSON.stringify(DEFAULT_CFG));
   loadShowcase();
+  checkHealth();
+  setInterval(checkHealth, 30000);
 })();
 
 function blobToDataUrl(blob) {
@@ -1350,4 +1392,64 @@ function normalizeOcrOutput(text) {
     return otslToMarkdownTable(t);
   }
   return t;
+}
+
+
+function setBusy(busy) {
+  state.busy = busy;
+  document.querySelectorAll("#thumbs button, #taskSeg button, #modeSeg button, #btnUpload, #btnRun, #btnSettings, #docPrompt, #kieFields, #vqaQuestion, #imgUpload").forEach(el => { el.disabled = busy; });
+  $("btnRun").textContent = busy ? "解析中…" : "开始解析 ↗";
+  $("srcPane").setAttribute("aria-busy", String(busy));
+  if (!busy) document.querySelectorAll("#modeSeg button").forEach(el => { el.disabled = state.task !== "document"; });
+}
+$("btnRun").onclick = () => $("srcPane").onclick();
+$("btnUpload").onclick = () => $("imgUpload").click();
+$("btnCopy").onclick = async function () {
+  try {
+    const field = document.createElement("textarea");
+    field.value = state.lastText; field.className = "sr-only";
+    document.body.appendChild(field); field.select();
+    let copied = false;
+    try { copied = document.execCommand("copy"); } finally { field.remove(); }
+    if (!copied) {
+      await Promise.race([
+        navigator.clipboard.writeText(state.lastText),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Clipboard timeout")), 2500))
+      ]);
+    }
+    this.textContent = "已复制";
+    setTimeout(() => { this.textContent = "复制"; }, 1500);
+  } catch (_) { showError("无法访问剪贴板，请切换原文视图复制，或下载结果。"); }
+};
+$("btnDownload").onclick = () => {
+  if (!state.lastText) return;
+  const form = document.createElement("form");
+  form.method = "POST"; form.action = "/api/export"; form.hidden = true;
+  for (const [name, value] of Object.entries({content: state.lastText, format: state.lastTask === "kie" ? "json" : "md"})) {
+    const input = document.createElement("input"); input.type = "hidden";
+    input.name = name; input.value = value; form.appendChild(input);
+  }
+  document.body.appendChild(form); form.submit(); form.remove();
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("drawer").hidden) closeDrawer();
+  if (e.key === "Tab" && !$("drawer").hidden) {
+    const nodes = [...$("drawer").querySelectorAll("button,input")];
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+async function checkHealth() {
+  try {
+    const res = await fetch("/api/health");
+    if (!res.ok) throw new Error("服务检查失败");
+    const health = await res.json();
+    $("connDot").classList.toggle("off", !health.ready);
+    $("statusText").textContent = health.ready ? "模型已连接" : "模型未连接";
+    $("statusText").title = health.ready ? health.model : health.error;
+  } catch (_) {
+    $("connDot").classList.add("off");
+    $("statusText").textContent = "服务未连接";
+  }
 }
