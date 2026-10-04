@@ -39,7 +39,7 @@ cd Xiaomi-OCR-0
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
 ```
 
-模型将在你的机器上运行。
+模型将在你的机器上运行。完整安装时，Agent 会在你授权的安装范围内，一并安装区域识别所需的 PaddlePaddle、PaddleX 和 PP-DocLayoutV3，并验证区域解析。你也可以指定只安装整页模式；如果当前平台不支持区域依赖，Agent 会说明限制。
 
 ## 运行浏览器 Demo
 
@@ -87,6 +87,16 @@ python demo/server.py --port 8787
 ```
 
 打开 <http://127.0.0.1:8787>。同一网页支持整页/区域文档解析、KIE、VQA 和 PDF 解析。上述 `requirements.txt` 已包含图像、PDF 和公共后处理所需依赖。区域模式可选依赖 PaddlePaddle/PaddleX 与 PP-DocLayoutV3 权重。依赖说明见 [demo/README.md](demo/README.md)，MCP 安装说明见 [INSTALL.md](INSTALL.md)。
+
+### 4. 区域模式依赖（手动安装）
+
+区域识别额外需要 PaddlePaddle、PaddleX 和 PP-DocLayoutV3。请在运行 Demo 或 MCP 服务的 Python 环境中，先按 [PaddlePaddle 官方安装教程](https://paddlepaddle.github.io/PaddleX/latest/installation/paddlepaddle_install.html)选择适合操作系统、Python 和 CPU/GPU 的版本，再参考 [PaddleX 官方安装教程](https://paddlepaddle.github.io/PaddleX/latest/installation/installation.html)。在仓库根目录运行：
+
+```bash
+python -m pip install -r requirements-paddlex.txt
+```
+
+该清单包含 `paddlex[cv]` 和 `shapely`；PaddlePaddle 需按官方教程单独安装。首次使用时会下载尚未缓存的 PP-DocLayoutV3 权重。使用 CPU 做版面检测时，在 Demo 或 MCP 环境中设置 `XIAOMI_OCR_LAYOUT_DEVICE=cpu`。整页 OCR、KIE 和 VQA 无需这些额外依赖。
 
 ## 仓库内容
 

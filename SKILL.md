@@ -43,6 +43,15 @@ would need to be downloaded; reuse existing compatible installations whenever po
 Keep any inference listener bound to loopback and do not claim inference is ready until an
 image request succeeds.
 
+For a complete agent-assisted installation, include region mode in the setup plan: explain
+that PaddlePaddle, PaddleX and PP-DocLayoutV3 weights are needed, then install them in the
+MCP environment under the user's existing setup authorization. Do not ask again when
+that authorization already covers these dependencies and downloads. Follow step 5 of the
+runtime Skill to choose a compatible CPU/GPU build, install `requirements-paddlex.txt`,
+and verify a real `mode="region"` request. Respect requests for page-only setup. If the
+platform is unsupported or installation fails, report region mode as unavailable and
+explain which base functions passed verification; do not claim full setup is complete.
+
 For the runtime workflow, task selection, and output handling, follow
 [`skills/xiaomi-ocr/SKILL.md`](skills/xiaomi-ocr/SKILL.md). The model is served locally
 through SGLang or vLLM; the MCP service performs task-specific prompting, page/region

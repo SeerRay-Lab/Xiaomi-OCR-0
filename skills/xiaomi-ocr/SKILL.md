@@ -51,19 +51,27 @@ do not recreate these steps with separate tools or direct model requests.
    been given. For other agents, merge the generated `mcp-config.json` entry into the current
    agent's MCP settings without replacing unrelated entries, then restart/rescan it. The MCP
    service connects only to the model's loopback listener.
-5. For printed-document region mode, first explain that PP-DocLayoutV3 requires additional
-   PaddlePaddle/PaddleX packages and may download layout weights. Install only after the user
-   chooses region mode and authorizes those downloads. Keep the packages in this Skill's
-   environment and ensure the layout model can load locally.
-   This is optional; whole-page OCR, KIE, and VQA do not need the layout runtime. Region
-   detection, cropping, and OCR remain inside this MCP server; no separate layout service
-   or layout tool is exposed to the agent.
+5. Include printed-document region mode when completing a full agent-assisted installation,
+   unless the user requests page-only setup. Explain the PaddlePaddle/PaddleX packages and
+   possible PP-DocLayoutV3 weight download as part of the setup plan. Use existing setup
+   authorization when it covers these downloads; ask only if it does not.
 
-   Use the official [PaddlePaddle installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/paddlepaddle_install.html)
-   to select a compatible CPU/GPU package, then follow the [PaddleX installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/installation.html).
-   `pdx.create_model("PP-DocLayoutV3")` downloads the layout checkpoint on first use if it is
-   not already cached. The [PP-DocLayoutV3 model card](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3)
-   describes the weights. Compatibility depends on the machine's OS, Python, and CUDA setup.
+   Check the OS, Python version, CPU/GPU support and available GPU memory against the official
+   [PaddlePaddle installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/paddlepaddle_install.html)
+   and [PaddleX installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/installation.html).
+   Install the compatible PaddlePaddle wheel in the MCP environment, then use that environment's
+   Python to run `-m pip install -r <repo>/requirements-paddlex.txt`. This includes `paddlex[cv]`
+   and `shapely`; plain `paddlex` alone is insufficient for PP-DocLayoutV3. Reuse compatible
+   packages and cached weights. If GPU memory is limited, use a supported CPU build and set
+   `XIAOMI_OCR_LAYOUT_DEVICE=cpu` in the MCP environment. If the Demo uses a separate Python
+   environment, install its region dependencies there too when setting up the Demo.
+
+   Load PP-DocLayoutV3 locally (the first use may download its
+   [weights](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3)), then verify one real
+   `ocr_image` call with `mode="region"` before reporting region mode ready. Region detection,
+   cropping and OCR stay inside the MCP server. If the platform is unsupported or setup fails,
+   report the failing step and retain the verified page OCR, KIE and VQA capabilities;
+   do not silently present page mode as region mode.
 
 Official runtime references:
 [SGLang Qwen3.5 guide](https://github.com/sgl-project/sglang/blob/main/docs_new/cookbook/autoregressive/Qwen/Qwen3.5.mdx) ·
@@ -99,4 +107,5 @@ JSON keys and values; for VQA, return the concise answer without adding unsuppor
 If MCP reports that the local model is unavailable, ask which runtime/model setup the user
 wants before installing or downloading anything. If region mode reports missing
 PaddleX/PaddlePaddle, explain the extra packages and possible layout-weight download, then
-get authorization before installing; whole-page mode remains available in the meantime.
+use existing authorization or ask if it does not cover the installation; whole-page mode
+remains available in the meantime.

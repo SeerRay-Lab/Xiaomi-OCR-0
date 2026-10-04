@@ -1,3 +1,7 @@
 # Install a platform-compatible PaddlePaddle wheel separately (see INSTALL.md).
 -r requirements.txt
-paddlex
+# PP-DocLayoutV3 layout analysis needs PaddleX's "cv" extras (opencv-contrib-python,
+# scikit-image/scipy) plus Shapely. With plain `paddlex`, create_model() fails at runtime
+# with a missing PDFReaderBackend (opencv-contrib-python) and later a Shapely ImportError.
+paddlex[cv]
+shapely

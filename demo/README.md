@@ -28,7 +28,7 @@ The demo imports the Skill's `mcp_ocr_server.py` pipeline for image normalizatio
 
 ## Region-mode dependencies
 
-Whole-page mode does **not** need PaddleX or PP-DocLayoutV3. Region mode uses PP-DocLayoutV3 for page layout detection. Install a PaddlePaddle build compatible with your operating system, Python, and (if used) CUDA version, then install PaddleX. On first use, `paddlex.create_model("PP-DocLayoutV3")` may download the layout model weights; later runs reuse PaddleX's local cache.
+Whole-page mode does **not** need PaddleX or PP-DocLayoutV3. Region mode uses PP-DocLayoutV3 for page layout detection. Install a PaddlePaddle build compatible with your operating system, Python, and (if used) CUDA version, then install PaddleX. PP-DocLayoutV3 needs PaddleX's `cv` extras and Shapely, so use the repository's `requirements-paddlex.txt` (`paddlex[cv]` + `shapely`) rather than plain `paddlex`. On first use, `paddlex.create_model("PP-DocLayoutV3")` may download the layout model weights; later runs reuse PaddleX's local cache.
 
 - [PaddlePaddle installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/paddlepaddle_install.html)
 - [PaddleX installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/installation.html)

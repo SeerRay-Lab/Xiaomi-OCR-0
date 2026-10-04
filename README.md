@@ -39,7 +39,10 @@ copy and send to your agent:
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
 ```
 
-The model will run on your machine.
+The model will run on your machine. For a complete setup, the agent also installs the
+region-mode dependencies (PaddlePaddle, PaddleX and PP-DocLayoutV3) under your setup
+authorization and verifies region parsing. You can request page-only setup. If your
+platform does not support the layout runtime, the agent will explain the limitation.
 
 ## Run the browser demo
 
@@ -87,6 +90,24 @@ python demo/server.py --port 8787
 ```
 
 Open <http://127.0.0.1:8787>. The same browser page supports whole-page/region document parsing, KIE, VQA, and PDF parsing. Install the shared requirements above, including Pillow and `pypdfium2` for images and PDFs. Region mode optionally needs PaddlePaddle/PaddleX and PP-DocLayoutV3 weights. See [demo/README.md](demo/README.md) for dependencies and [INSTALL.md](INSTALL.md) for MCP setup.
+
+### 4. Region-mode dependencies (manual installation)
+
+Region mode additionally needs PaddlePaddle, PaddleX and PP-DocLayoutV3. In the Python
+environment that runs the Demo or MCP server, follow the official
+[PaddlePaddle installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/paddlepaddle_install.html)
+to select a compatible CPU/GPU build, then the
+[PaddleX installation guide](https://paddlepaddle.github.io/PaddleX/latest/en/installation/installation.html).
+From the repository root, install the layout dependencies:
+
+```bash
+python -m pip install -r requirements-paddlex.txt
+```
+
+This includes `paddlex[cv]` and `shapely`; PaddlePaddle is installed separately using the
+official guide. PP-DocLayoutV3 weights download on first use if not cached. For CPU layout,
+set `XIAOMI_OCR_LAYOUT_DEVICE=cpu` in the Demo or MCP environment. Whole-page OCR, KIE and
+VQA work without these extra dependencies.
 
 ## Repository contents
 
