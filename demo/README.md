@@ -17,6 +17,14 @@ Open <http://127.0.0.1:8787>. Set `XIAOMI_OCR_LOCAL_URL` if the inference server
 
 `requirements.txt` includes the PDF renderer.
 
+## Interface language
+
+Use the header's **English / 中文** button to switch languages. The initial language follows
+the browser preference (Chinese for `zh`, English otherwise); your choice is remembered.
+Open `/?lang=en` or `/?lang=zh` to share a language-specific view. Switching languages keeps
+the selected document, entered prompts/questions, current task and recognition results.
+Only interface text changes; OCR output retains the document's language.
+
 ## Use
 
 - **Document parsing:** choose whole-page or region mode. Whole-page mode has an editable prompt and suits handwriting, calligraphy, scene text, historical documents, and irregular layouts. Region mode suits regular printed documents and runs layout detection, region OCR, and output assembly in the local server.

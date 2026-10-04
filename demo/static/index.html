@@ -7,7 +7,7 @@
 <title>Xiaomi-OCR-0 · 文档工作台</title>
 <link rel="icon" href="/img/xiaomi-logo.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="/katex/katex.min.css?v=2" />
-<link rel="stylesheet" href="/style.css?v=1" />
+<link rel="stylesheet" href="/style.css?v=2" />
 </head>
 <body>
 <div class="shell">
@@ -17,6 +17,7 @@
       <div class="conn" role="status"><span class="dot off" id="connDot"></span><span id="statusText">检查服务…</span></div>
       <a class="source-link" href="https://github.com/SeerRay-Lab/Xiaomi-OCR-0" target="_blank" rel="noreferrer">GitHub ↗</a>
       <a class="source-link hf-link" href="https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0" target="_blank" rel="noreferrer" aria-label="Hugging Face 模型主页"><span class="hf-full">Hugging Face</span><span class="hf-short">HF</span> ↗</a>
+      <button class="ghost lang-switch" id="btnLanguage" type="button" aria-label="Switch to English">English</button>
       <button class="ghost icon" id="btnTheme" title="切换主题" aria-label="切换主题" type="button">◐</button>
       <button class="ghost" id="btnSettings" type="button">设置</button>
     </div>
@@ -40,7 +41,7 @@
         <details class="prompt-details" id="docPromptWrap"><summary>解析提示词 <span>可选 · 自定义输出要求</span></summary><label class="task-input"><span class="sr-only">解析提示词</span><textarea id="docPrompt" rows="3">Extract all information from the main body of the document image and represent it in markdown format, ignoring headers and footers. Tables should be expressed in OTSL format, formulas in the document should be represented using LATEX format, and the parsing should be organized according to the reading order.</textarea></label></details>
         <label class="task-input" id="kieFieldsWrap" hidden><span>想提取哪些字段？<small>逗号分隔，留空提取主要信息</small></span><input id="kieFields" type="text" placeholder="例如：日期、商户、总额、税额" /></label>
         <label class="task-input" id="vqaQuestionWrap" hidden><span>关于这张图，你想了解什么？</span><input id="vqaQuestion" type="text" placeholder="例如：文档中的总金额是多少？" /></label>
-        <div class="task-note" id="regionPromptNote" hidden>区域模式适合印刷文档，将自动检测版面并分别识别文字、表格和公式。需要安装 <a href="https://paddlepaddle.github.io/PaddleX/latest/en/installation/installation.html" target="_blank" rel="noreferrer">PaddleX / PP-DocLayoutV3 ↗</a>。</div>
+        <div class="task-note" id="regionPromptNote" hidden><span>区域模式适合印刷文档，将自动检测版面并分别识别文字、表格和公式。</span> <span id="regionDependencyStatus" role="status">正在检查区域解析依赖…</span><span id="regionInstallHint" hidden> 需要安装 <a href="https://paddlepaddle.github.io/PaddleX/latest/en/installation/installation.html" target="_blank" rel="noreferrer">PaddleX / PP-DocLayoutV3 ↗</a>。</span></div>
       </div>
       <section class="stage">
         <div class="pane">
@@ -73,6 +74,7 @@
   <div class="drawer-foot"><button class="ghost" id="btnCancelCfg" type="button">取消</button><button class="primary" id="btnSaveCfg" type="button">保存设置</button></div>
 </aside>
 <script src="/katex/katex.min.js?v=2"></script>
-<script src="/app.js?v=47"></script>
+<script src="/i18n.js?v=2"></script>
+<script src="/app.js?v=50"></script>
 </body>
 </html>

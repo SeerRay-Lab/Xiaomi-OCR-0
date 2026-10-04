@@ -175,9 +175,9 @@ function setLed(mode) {
     seg.querySelectorAll("button").forEach(function (x) {
       x.classList.toggle("active", x.dataset.mode === state.mode);
     });
-    $("stageHint").textContent = state.mode === "region"
+    uiText("stageHint", () => t(state.mode === "region"
       ? "REGION · layout + parallel"
-      : "CLICK TO PARSE";
+      : "CLICK TO PARSE"));
     updateTaskInputs();
     resetResult();
     clearError();
@@ -205,7 +205,7 @@ function updateTaskInputs() {
     return;
   }
   document.querySelectorAll("#taskSeg button").forEach(b => { b.classList.toggle("active", b.dataset.task === state.task); b.setAttribute("aria-pressed", String(b.dataset.task === state.task)); });
-  $("stageHint").textContent = isPdf ? (region ? "PDF · REGION PARSING" : "PDF · PAGE PARSING") : (region ? "REGION · layout + parallel" : "CLICK TO PARSE");
+  uiText("stageHint", () => t(isPdf ? (region ? "PDF · REGION PARSING" : "PDF · PAGE PARSING") : (region ? "REGION · layout + parallel" : "CLICK TO PARSE")));
 }
 
 (function initTaskSeg() {
@@ -228,23 +228,6 @@ function updateTaskInputs() {
   $("kieFields").addEventListener("input", resetResult);
   $("vqaQuestion").addEventListener("input", resetResult);
 })();
-
-async function runRegionOcr(dataUrl) {
-  const c = cfg();
-  const body = {
-    image_base64: dataUrl,
-    max_tokens: Math.max(1, Math.min(c.max_tokens || 2048, 4096)),
-    concurrency: 16,
-  };
-  const res = await fetch("/api/parse/regions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || ("HTTP " + res.status));
-  return data;
-}
 
 function firePulse() {
   const p = $("pulse");
@@ -719,9 +702,9 @@ function renderMarkdown(md) {
   return out.join("\n");
 }
 
-function showError(msg) {
+function showError(msg, values = {}) {
   const b = $("errorBanner");
-  b.textContent = msg;
+  uiText(b, () => t(msg, values));
   b.classList.add("show");
 
 }
@@ -745,7 +728,7 @@ function typeResult(rawText) {
   recordResult(full, null);
   el.style.display = "block";
   $("resEmpty").style.display = "none";
-  $("badgeRight").textContent = "TYPING";
+  uiText("badgeRight", () => t("TYPING"));
   $("badgeRight").className = "badge on";
 
   if (reduceMotion) {
@@ -753,7 +736,7 @@ function typeResult(rawText) {
     el.classList.add("markdown");
     el.innerHTML = renderMarkdown(full);
     state.typedDone = true;
-    $("badgeRight").textContent = "DONE";
+    uiText("badgeRight", () => t("DONE"));
     return;
   }
 
@@ -780,7 +763,7 @@ function typeResult(rawText) {
       el.classList.add("markdown");
       el.innerHTML = renderMarkdown(full);
       state.typedDone = true;
-      $("badgeRight").textContent = "DONE";
+      uiText("badgeRight", () => t("DONE"));
       pane.scrollTop = 0;
     }
   }
@@ -799,17 +782,17 @@ function resetResult() {
   $("resText").style.display = "none";
   $("resText").innerHTML = "";
   $("resEmpty").style.display = "flex";
-  $("badgeRight").textContent = "待解析";
+  uiText("badgeRight", () => t("待解析"));
   $("badgeRight").className = "badge";
-  $("sideHint").textContent = "点击画面开始解析";
+  uiText("sideHint", () => t("点击画面开始解析"));
   const hint = $("clickHint");
-  if (hint) { hint.textContent = "点击图片 · 开始解析"; hint.style.opacity = ""; }
+  if (hint) { uiText(hint, () => t("点击图片 · 开始解析")); hint.style.opacity = ""; }
 }
 
 function paintPills() {
-  $("pillLat").textContent = "耗时 —";
-  $("pillTok").textContent = "TOKENS —";
-  $("pillModeText").textContent = "待解析";
+  uiText("pillLat", () => t("耗时 —"));
+  uiText("pillTok", () => t("TOKENS —"));
+  uiText("pillModeText", () => t("待解析"));
   setLed("off");
 }
 
@@ -823,7 +806,7 @@ function renderThumbs() {
   up.className = "film-upload" + (state.activeId === "custom" ? " active" : "");
   up.innerHTML =
     '<span class="plus">+</span>' +
-    "<span>上传图像 / PDF</span>" +
+    "<span>" + t("上传图像 / PDF") + "</span>" +
     '<span class="sub">PNG · JPG · WEBP · PDF</span>';
   up.onclick = function () { $("imgUpload").click(); };
   host.appendChild(up);
@@ -834,8 +817,8 @@ function renderThumbs() {
     b.className = "film" + (state.activeId === item.id ? " active" : "");
     b.dataset.id = item.id;
     b.innerHTML =
-      '<img src="' + item.image + '" alt="' + escapeHtml(item.title) + '" loading="lazy" />' +
-      '<span class="cap">' + escapeHtml(item.title) + '<small>' + escapeHtml(item.desc || '') + '</small></span>';
+      '<img src="' + item.image + '" alt="' + escapeHtml(t(item.title)) + '" loading="lazy" />' +
+      '<span class="cap">' + escapeHtml(t(item.title)) + '<small>' + escapeHtml(t(item.desc || '')) + '</small></span>';
     b.onclick = function () { selectItem(item.id); };
     host.appendChild(b);
   });
@@ -858,17 +841,17 @@ $("imgUpload").onchange = function () {
     state.activeId = "custom";
     document.querySelectorAll(".film").forEach(function (el) { el.classList.remove("active"); });
     document.querySelectorAll(".film-upload").forEach(function (el) { el.classList.add("active"); });
-    $("stageTitle").textContent = f.name;
+    uiText("stageTitle", () => f.name);
     $("stageImg").hidden = true;
     $("stagePdf").hidden = false;
     $("stagePdf").src = state.pdfUrl;
-    $("badgeLeft").textContent = "PDF";
-    $("pillLat").textContent = "—"; $("pillTok").textContent = "—";
-    $("pillModeText").textContent = "PDF · LOCAL"; setLed("on");
+    uiText("badgeLeft", () => t("PDF"));
+    uiText("pillLat", () => t("—")); uiText("pillTok", () => t("—"));
+    uiText("pillModeText", () => t("PDF · LOCAL")); setLed("on");
     state.task = "document";
     document.querySelectorAll("#taskSeg button").forEach(function (b) { b.classList.toggle("active", b.dataset.task === "document"); });
     updateTaskInputs(); resetResult();
-    $("sideHint").textContent = "点击画面解析 PDF 全部页面";
+    uiText("sideHint", () => t("点击画面解析 PDF 全部页面"));
     this.value = "";
     return;
   }
@@ -879,18 +862,18 @@ $("imgUpload").onchange = function () {
     state.activeId = "custom";
     document.querySelectorAll(".film").forEach(function (el) { el.classList.remove("active"); });
     document.querySelectorAll(".film-upload").forEach(function (el) { el.classList.add("active"); });
-    $("stageTitle").textContent = f.name;
+    uiText("stageTitle", () => f.name);
     $("stageImg").hidden = false;
     $("stagePdf").hidden = true; $("stagePdf").removeAttribute("src");
     $("stageImg").src = r.result;
     $("stageImg").alt = f.name;
-    $("pillLat").textContent = "—";
-    $("pillTok").textContent = "—";
-    $("pillModeText").textContent = "LIVE"; setLed("on");
-    $("badgeLeft").textContent = "IMAGE";
+    uiText("pillLat", () => t("—"));
+    uiText("pillTok", () => t("—"));
+    uiText("pillModeText", () => t("LIVE")); setLed("on");
+    uiText("badgeLeft", () => t("IMAGE"));
     updateTaskInputs();
     resetResult();
-    $("sideHint").textContent = "点击画面开始实时解析";
+    uiText("sideHint", () => t("点击画面开始实时解析"));
   };
   r.readAsDataURL(f);
   this.value = "";
@@ -903,7 +886,7 @@ function itemById(id) {
 function selectItem(id) {
   const item = itemById(id);
   if (!item || state.busy) return;
-  $("stageTitle").textContent = item.title;
+  uiText("stageTitle", () => t(item.title));
   clearError();
   stopTyping();
   state.activeId = id;
@@ -916,8 +899,8 @@ function selectItem(id) {
   $("stageImg").src = item.image;
   $("stageImg").hidden = false;
   $("stagePdf").hidden = true; $("stagePdf").removeAttribute("src");
-  $("badgeLeft").textContent = "IMAGE";
-  $("stageImg").alt = item.title;
+  uiText("badgeLeft", () => t("IMAGE"));
+  $("stageImg").alt = t(item.title);
   paintPills(item);
   updateTaskInputs();
   resetResult();
@@ -1018,139 +1001,31 @@ async function streamLiveOcr(dataUrl, onDelta, prompt, task) {
   };
 }
 
-/**
- * Region SSE stream: yields events as regions complete.
- *   event layout {count, regions, layout_ms}
- *   event region {index, bucket, ok, ms, text}
- *   event done   {latency_ms, concurrency, usage}
- */
-async function streamRegionOcr(dataUrl, handlers) {
+/** Parse all regions and display the assembled document once it is complete. */
+async function runRegionOcr(dataUrl) {
   const c = cfg();
-  const body = {
-    image_base64: dataUrl,
-    max_tokens: Math.max(1, Math.min(c.max_tokens || 2048, 4096)),
-    concurrency: 16,
-  };
   const ac = new AbortController();
-  const timer = setTimeout(function () { ac.abort(); }, 120000);
-  let res;
+  const timer = setTimeout(() => ac.abort(), 120000);
   try {
-    res = await fetch("/api/parse/regions/stream", {
+    const res = await fetch("/api/parse/regions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_base64: dataUrl,
+        max_tokens: Math.max(1, Math.min(c.max_tokens || 2048, 4096)),
+        concurrency: 16,
+      }),
       signal: ac.signal,
     });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "HTTP " + res.status);
+    return data;
   } catch (e) {
-    clearTimeout(timer);
     if (e.name === "AbortError") throw new Error("区域解析超时（120s）");
     throw e;
-  }
-  if (!res.ok) {
-    clearTimeout(timer);
-    let msg = "HTTP " + res.status;
-    try { const j = await res.json(); if (j.error) msg = j.error; } catch (e) {}
-    throw new Error(msg);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  let done = null;
-  let err = null;
-  try {
-    while (true) {
-      const { done: d, value } = await reader.read();
-      if (d) break;
-      buf += decoder.decode(value, { stream: true });
-      const parts = buf.split("\n\n");
-      buf = parts.pop() || "";
-      for (const part of parts) {
-        let ev = "message";
-        let data = "";
-        for (const line of part.split("\n")) {
-          if (line.startsWith("event:")) ev = line.slice(6).trim();
-          else if (line.startsWith("data:")) data += line.slice(5).trim();
-        }
-        if (!data) continue;
-        let obj;
-        try { obj = JSON.parse(data); } catch (e) { continue; }
-        if (ev === "layout" && handlers.onLayout) handlers.onLayout(obj);
-        else if (ev === "region" && handlers.onRegion) handlers.onRegion(obj);
-        else if (ev === "done") done = obj;
-        else if (ev === "error") err = obj.error || "stream error";
-      }
-    }
   } finally {
     clearTimeout(timer);
-    try { reader.cancel(); } catch (e) {}
   }
-  if (err) throw new Error(err);
-  if (!done) throw new Error("区域推理流中断，未收到完成事件");
-  return done;
-}
-
-/* region 拼装器：按阅读序保序上屏 */
-function makeRegionAssembler(onFlush) {
-  const buf = {};
-  let next = 0;
-  return {
-    push: function (r) {
-      buf[r.index] = r;
-    },
-    flush: function () {
-      const out = [];
-      while (buf[next] !== undefined) {
-        out.push(buf[next]);
-        delete buf[next];
-        next++;
-      }
-      return out;
-    },
-    pending: function () { return Object.keys(buf).length; },
-  };
-}
-
-/** 追加式打字机：单一全局串行队列 —— 多个调用不会互相打断文本顺序 */
-const _typeQueue = [];
-let _typeTimer = null;
-
-function _typePump(el) {
-  if (_typeTimer || !_typeQueue.length) return;
-  const entry = _typeQueue.shift();
-  const text = entry.text;
-  const onFinish = entry.onFinish;
-  let i = 0;
-  const step = Math.max(2, Math.ceil(text.length / 60));
-  function tick() {
-    i = Math.min(text.length, i + step);
-    el.textContent += text.slice(i - step, i);
-    const pane = $("resPane");
-    pane.scrollTop = pane.scrollHeight;
-    if (i < text.length) {
-      _typeTimer = setTimeout(tick, entry.ms || 12);
-    } else {
-      _typeTimer = null;
-      if (onFinish) onFinish();
-      // 队列里还有就继续
-      if (_typeQueue.length) _typePump(el);
-    }
-  }
-  tick();
-}
-
-function appendTyped(el, text, perChunkMs, onFinish) {
-  _typeQueue.push({ text: String(text || ""), ms: perChunkMs, onFinish: onFinish });
-  if (!_typeTimer) _typePump(el);
-}
-
-/** 等待打字机队列清空（渲染前调用） */
-function waitTypedIdle() {
-  return new Promise(function (resolve) {
-    (function check() {
-      if (!_typeTimer && !_typeQueue.length) return resolve();
-      setTimeout(check, 40);
-    })();
-  });
 }
 
 /** Resolve a data URL for whatever is on stage (custom or showcase). */
@@ -1190,9 +1065,9 @@ async function runPdfParse(file) {
     const done = status.done || 0;
     const percent = total ? Math.round(done * 100 / total) : 0;
     $("taskProgressFill").style.width = percent + "%";
-    $("stageHint").textContent = (status.phase_label || "PDF 处理中") + (total ? " · " + percent + "%" : "");
-    $("sideHint").textContent = "PDF " + done + "/" + total + " 页 · " + (state.mode === "region" ? "区域模式" : "整页模式");
-    $("pillModeText").textContent = "PDF · " + done + "/" + (total || "…");
+    uiText("stageHint", () => t(status.phase === "render" ? "渲染 PDF 页面" : status.phase === "ocr" ? "识别 PDF 页面" : status.status === "done" ? "已完成" : "PDF 处理中") + (total ? " · " + percent + "%" : ""));
+    uiText("sideHint", () => t("PDF {done}/{total} 页 · {mode}", {done, total, mode: t(state.mode === "region" ? "区域模式" : "整页模式")}));
+    uiText("pillModeText", () => t("PDF · " + done + "/" + (total || "…")));
     if (["done", "error", "cancelled"].includes(status.status)) break;
   }
   if (status.status !== "done" && !status.has_markdown) throw new Error(status.error || "PDF 解析未完成");
@@ -1233,10 +1108,10 @@ $("srcPane").onclick = async function () {
   firePulse();
   $("imgWrap").classList.add("thinking");
   const hint = $("clickHint");
-  if (hint) { hint.textContent = isPdf ? "PDF 解析中…" : (useRegion ? "区域解析中…" : "思考中…"); hint.style.opacity = "1"; }
-  $("sideHint").textContent = isPdf ? "PDF 页面渲染与解析中" : (useRegion ? "layout + 并发 region OCR" : "流式输出中");
-  $("stageHint").textContent = isPdf ? "PDF…" : (useRegion ? "REGION…" : "STREAMING…");
-  $("badgeRight").textContent = "LIVE";
+  if (hint) { uiText(hint, () => t(isPdf ? "PDF 解析中…" : (useRegion ? "区域解析中…" : "思考中…"))); hint.style.opacity = "1"; }
+  uiText("sideHint", () => t(isPdf ? "PDF 页面渲染与解析中" : (useRegion ? "layout + 并发 region OCR" : "流式输出中")));
+  uiText("stageHint", () => t(isPdf ? "PDF…" : (useRegion ? "REGION…" : "STREAMING…")));
+  uiText("badgeRight", () => t("LIVE"));
   $("badgeRight").className = "badge on";
 
   stopTyping();
@@ -1254,57 +1129,32 @@ $("srcPane").onclick = async function () {
       el.classList.remove("typing");
       el.classList.add("markdown");
       recordResult(data.content, data);
-      if (data.warning) showError("部分 PDF 页面失败，已保留可下载的结果：" + data.warning);
+      if (data.warning) showError("部分 PDF 页面失败，已保留可下载的结果：{error}", {error: data.warning});
       el.innerHTML = renderMarkdown(normalizeOcrOutput(data.content));
-      $("pillLat").innerHTML = "LATENCY <b>" + ((data.latency_ms || 0) / 1000).toFixed(2) + "s</b>";
-      $("pillTok").innerHTML = "TOKENS <b>" + ((data.usage && data.usage.completion_tokens) || "—") + "</b>";
-      $("pillModeText").textContent = "PDF · " + data.pages + " PAGES"; setLed("on");
-      $("sideHint").textContent = "点击画面可重新解析 PDF";
-      $("stageHint").textContent = "PDF · DONE";
-      if (hint) { hint.textContent = "点击解析"; hint.style.opacity = ""; }
+      uiText("pillLat", () => "LATENCY " + ((data.latency_ms || 0) / 1000).toFixed(2) + "s");
+      uiText("pillTok", () => "TOKENS " + ((data.usage && data.usage.completion_tokens) || "—"));
+      uiText("pillModeText", () => t("PDF · {count} 页", {count: data.pages})); setLed("on");
+      uiText("sideHint", () => t("点击画面可重新解析 PDF"));
+      uiText("stageHint", () => t("PDF · DONE"));
+      if (hint) { uiText(hint, () => t("点击解析")); hint.style.opacity = ""; }
     } else {
       const dataUrl = await stageImageDataUrl();
       if (useRegion) {
-      // SSE：layout 先到，随后每个 region 完成即推 —— 串行打字机队列，保持阅读序
-      const asm = makeRegionAssembler();
-      let count = 0;
-      let okN = 0;
-      let layoutInfo = null;
-      const pump = function () {
-        const ready = asm.flush();
-        if (!ready.length) return;
-        ready.forEach(function (r) {
-          const t = (r.text || "").trim();
-          if (t) appendTyped(el, t + "\n\n", 8);
-        });
-      };
-      data = await streamRegionOcr(dataUrl, {
-        onLayout: function (o) {
-          count = o.count || 0;
-          layoutInfo = o;
-          $("stageHint").textContent = "REGION · " + count + " boxes";
-          $("sideHint").textContent = "layout " + ((o.layout_ms || 0) + "ms") + " · 开始识别…";
-        },
-        onRegion: function (o) {
-          if (o.ok) okN++;
-          asm.push(o);
-          pump();
-        },
-      });
-      // 收尾：flush 残余 + 等打字机队列清空再渲染（保证 OTSL 表/公式完整）
-      pump();
-      await waitTypedIdle();
+      data = await runRegionOcr(dataUrl);
+      const regions = data.regions || [];
+      const count = regions.length;
+      const okN = regions.filter(region => region.ok).length;
       el.classList.remove("typing");
       el.classList.add("markdown");
       recordResult(data.content, data);
       el.innerHTML = renderMarkdown(data.content || "");
-      $("pillLat").innerHTML = "LATENCY <b>" + ((data.latency_ms || 0) / 1000).toFixed(2) + "s</b>";
-      $("pillTok").innerHTML = "TOKENS <b>" + ((data.usage && data.usage.completion_tokens) || "—") + "</b>";
-      $("pillModeText").textContent = "REGION · " + okN + "/" + count;
+      uiText("pillLat", () => "LATENCY " + ((data.latency_ms || 0) / 1000).toFixed(2) + "s");
+      uiText("pillTok", () => "TOKENS " + ((data.usage && data.usage.completion_tokens) || "—"));
+      uiText("pillModeText", () => t("REGION · " + okN + "/" + count));
       setLed("on");
-      $("sideHint").textContent = "layout " + ((layoutInfo && layoutInfo.layout_ms) || 0) + "ms · 并发 " + (data.concurrency || 16);
-      $("stageHint").textContent = "REGION · " + count + " · " + okN + " ok";
-      if (hint) { hint.textContent = "点击解析"; hint.style.opacity = ""; }
+      uiText("sideHint", () => t("版面检测 {ms}ms · 并发 {count}", {ms: data.layout_ms || 0, count: data.concurrency || 16}));
+      uiText("stageHint", () => t("REGION · " + count + " · " + okN + " ok"));
+      if (hint) { uiText(hint, () => t("点击解析")); hint.style.opacity = ""; }
       } else {
       const chosenPrompt = task === "document" ? ($("docPrompt").value || LIVE_PROMPT) : "";
       data = await streamLiveOcr(dataUrl, function (chunk, full) {
@@ -1325,12 +1175,12 @@ $("srcPane").onclick = async function () {
         : renderMarkdown(normalizeOcrOutput(finalContent));
       const lat = (data.latency_ms / 1000).toFixed(2) + "s";
       const u = data.usage || {};
-      $("pillLat").innerHTML = "LATENCY <b>" + lat + "</b>";
-      $("pillTok").innerHTML = "TOKENS <b>" + (u.completion_tokens != null ? u.completion_tokens : "—") + "</b>";
-      $("pillModeText").textContent = task === "document" ? "LIVE" : (task === "kie" ? "KIE · LIVE" : "VQA · LIVE"); setLed("on");
-      $("sideHint").textContent = "点击画面可重新解析";
-      $("stageHint").textContent = (task === "document" ? "PAGE" : task.toUpperCase()) + " · LIVE";
-      if (hint) { hint.textContent = "点击解析"; hint.style.opacity = ""; }
+      uiText("pillLat", () => "LATENCY " + lat);
+      uiText("pillTok", () => "TOKENS " + (u.completion_tokens != null ? u.completion_tokens : "—"));
+      uiText("pillModeText", () => t(task === "document" ? "LIVE" : (task === "kie" ? "KIE · LIVE" : "VQA · LIVE"))); setLed("on");
+      uiText("sideHint", () => t("点击画面可重新解析"));
+      uiText("stageHint", () => t((task === "document" ? "PAGE" : task.toUpperCase()) + " · LIVE"));
+      if (hint) { uiText(hint, () => t("点击解析")); hint.style.opacity = ""; }
       }
     }
   } catch (e) {
@@ -1338,15 +1188,15 @@ $("srcPane").onclick = async function () {
       el.textContent = "";
       $("resEmpty").style.display = "flex";
       showError(e.message || String(e));
-      $("badgeRight").textContent = "ERROR";
+      uiText("badgeRight", () => t("ERROR"));
       $("badgeRight").className = "badge";
       setLed("err");
-      $("sideHint").textContent = isPdf ? "确认 PDF 依赖与本机模型已就绪" : "确认本机模型和区域识别依赖已启动";
-      $("stageHint").textContent = "ERROR";
-      if (hint) { hint.textContent = "点击重试"; hint.style.opacity = ""; }
+      uiText("sideHint", () => t(isPdf ? "确认 PDF 依赖与本机模型已就绪" : "确认本机模型和区域识别依赖已启动"));
+      uiText("stageHint", () => t("ERROR"));
+      if (hint) { uiText(hint, () => t("点击重试")); hint.style.opacity = ""; }
   } finally {
     setBusy(false);
-    if (state.lastText) { $("badgeRight").textContent = state.lastMeta && state.lastMeta.warning ? "部分完成" : "已完成"; paintResult(); }
+    if (state.lastText) { uiText("badgeRight", () => t(state.lastMeta && state.lastMeta.warning ? "部分完成" : "已完成")); paintResult(); }
     $("imgWrap").classList.remove("thinking");
     if (isPdf) setTimeout(function () { $("taskProgress").hidden = true; }, 1100);
   }
@@ -1359,12 +1209,12 @@ function loadShowcase() {
     .then(function (data) {
       state.items = (data && data.items) || [];
       renderThumbs();
-      $("sampleCount").textContent = state.items.length + " 个样例";
+      uiText("sampleCount", () => t("{count} 个样例", {count: state.items.length}));
       const first = state.items[0];
       if (first) selectItem(first.id);
     })
     .catch(function (e) {
-      $("stageTitle").textContent = "Showcase 加载失败";
+      uiText("stageTitle", () => t("Showcase 加载失败"));
       showError(e.message);
     });
 }
@@ -1398,7 +1248,7 @@ function normalizeOcrOutput(text) {
 function setBusy(busy) {
   state.busy = busy;
   document.querySelectorAll("#thumbs button, #taskSeg button, #modeSeg button, #btnUpload, #btnRun, #btnSettings, #docPrompt, #kieFields, #vqaQuestion, #imgUpload").forEach(el => { el.disabled = busy; });
-  $("btnRun").textContent = busy ? "解析中…" : "开始解析 ↗";
+  uiText("btnRun", () => t(busy ? "解析中…" : "开始解析 ↗"));
   $("srcPane").setAttribute("aria-busy", String(busy));
   if (!busy) document.querySelectorAll("#modeSeg button").forEach(el => { el.disabled = state.task !== "document"; });
 }
@@ -1417,8 +1267,8 @@ $("btnCopy").onclick = async function () {
         new Promise((_, reject) => setTimeout(() => reject(new Error("Clipboard timeout")), 2500))
       ]);
     }
-    this.textContent = "已复制";
-    setTimeout(() => { this.textContent = "复制"; }, 1500);
+    uiText(this, () => t("已复制"));
+    setTimeout(() => { uiText(this, () => t("复制")); }, 1500);
   } catch (_) { showError("无法访问剪贴板，请切换原文视图复制，或下载结果。"); }
 };
 $("btnDownload").onclick = () => {
@@ -1440,16 +1290,36 @@ document.addEventListener("keydown", e => {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 });
+function updateRegionDependencyStatus(region) {
+  const available = region && typeof region.available === "boolean";
+  $("regionInstallHint").hidden = !available || region.available;
+  uiText("regionDependencyStatus", () => available
+    ? (region.available ? t("区域解析依赖已安装。")
+      : t("缺少区域解析依赖：{missing}。", {missing: (region.missing || []).join(", ")}))
+    : t("无法确认区域解析依赖，请检查服务连接。"));
+}
+
 async function checkHealth() {
   try {
     const res = await fetch("/api/health");
     if (!res.ok) throw new Error("服务检查失败");
     const health = await res.json();
+    updateRegionDependencyStatus(health.region);
     $("connDot").classList.toggle("off", !health.ready);
-    $("statusText").textContent = health.ready ? "模型已连接" : "模型未连接";
+    uiText("statusText", () => t(health.ready ? "模型已连接" : "模型未连接"));
     $("statusText").title = health.ready ? health.model : health.error;
   } catch (_) {
+    updateRegionDependencyStatus(null);
     $("connDot").classList.add("off");
-    $("statusText").textContent = "服务未连接";
+    uiText("statusText", () => t("服务未连接"));
   }
 }
+
+// Refresh sample labels without resetting user input, task progress or OCR output.
+document.addEventListener("languagechange", () => {
+  renderThumbs();
+  if (state.busy) document.querySelectorAll("#thumbs button").forEach(button => { button.disabled = true; });
+  const item = itemById(state.activeId);
+  if (item && !state.custom) $("stageImg").alt = t(item.title);
+  else if (state.custom) $("stageImg").alt = state.custom.name;
+});

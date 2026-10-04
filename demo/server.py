@@ -136,6 +136,15 @@ def validate_request(req):
     return req
 
 
+def region_runtime_status():
+    """Check installed layout dependencies without loading the model or downloading weights."""
+    dependencies = {"paddle": "PaddlePaddle", "paddlex": "PaddleX", "numpy": "NumPy",
+                    "PIL": "Pillow", "cv2": "OpenCV", "shapely": "Shapely"}
+    missing = [name for module, name in dependencies.items()
+               if importlib.util.find_spec(module) is None]
+    return {"available": not missing, "missing": missing}
+
+
 def model_health():
     """Probe the configured model; a running demo alone does not imply inference is ready."""
     mcp = mcp_pipeline()
@@ -689,10 +698,12 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path == "/api/health":
+            health = {"region": region_runtime_status()}
             try:
-                return self._json(200, model_health())
+                health.update(model_health())
             except Exception as exc:
-                return self._json(200, {"ready": False, "model": LOCAL_MODEL, "error": str(exc)})
+                health.update(ready=False, model=LOCAL_MODEL, error=str(exc))
+            return self._json(200, health)
         if path in ("/", "/index.html"):
             self.path = "/index.html"
             return super().do_GET()

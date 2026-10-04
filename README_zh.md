@@ -86,7 +86,7 @@ python -m pip install -r requirements.txt
 python demo/server.py --port 8787
 ```
 
-打开 <http://127.0.0.1:8787>。同一网页支持整页/区域文档解析、KIE、VQA 和 PDF 解析。上述 `requirements.txt` 已包含图像、PDF 和公共后处理所需依赖。区域模式可选依赖 PaddlePaddle/PaddleX 与 PP-DocLayoutV3 权重。依赖说明见 [demo/README.md](demo/README.md)，MCP 安装说明见 [INSTALL.md](INSTALL.md)。
+打开 <http://127.0.0.1:8787>。界面支持中英文切换，右上角可选择语言；英文直达链接为 <http://127.0.0.1:8787/?lang=en>。同一网页支持整页/区域文档解析、KIE、VQA 和 PDF 解析。上述 `requirements.txt` 已包含图像、PDF 和公共后处理所需依赖。区域模式可选依赖 PaddlePaddle/PaddleX 与 PP-DocLayoutV3 权重。依赖说明见 [demo/README.md](demo/README.md)，MCP 安装说明见 [INSTALL.md](INSTALL.md)。
 
 ### 4. 区域模式依赖（手动安装）
 

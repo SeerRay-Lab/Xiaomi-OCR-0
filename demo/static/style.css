@@ -21,3 +21,21 @@ html[data-theme="dark"]{--accent:#ff914c;--accent-soft:#34281f;--bg:#181b19;--bg
 .community-actions{flex-shrink:0;text-align:center}.support-links{display:flex;gap:9px}.support-links a{display:inline-flex;align-items:center;gap:10px;padding:11px 15px;border:1px solid var(--line2);border-radius:7px;font:11px var(--mono);transition:border-color .15s,background .15s}.support-links a:hover{border-color:var(--accent);background:var(--accent-soft)}.support-links a>span:first-child{color:var(--accent);font-size:18px}.support-links a>span:last-child{color:var(--ink3)}.issue-link{display:inline-block;margin-top:17px;font-size:11px;color:var(--ink2);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--line2)}.issue-link:hover{color:var(--accent)}
 @media(max-width:1000px){.hf-full{display:none}.hf-short{display:inline}.community{gap:24px;padding:26px}.community h2{font-size:21px}.community p br{display:none}.support-links{flex-direction:column}.support-links a{justify-content:center}.community-actions{max-width:180px}}
 @media(max-width:720px){.source-link{font-size:9px;padding:5px}.brand{gap:7px}.brand b{font-size:11px}.top-right{gap:4px}.topbar{padding:0 12px}.community{align-items:flex-start;flex-direction:column;padding:23px 20px;gap:22px}.community h2{font-size:22px}.community p{font-size:11px}.community-actions{max-width:none;width:100%;text-align:left}.support-links{flex-direction:row}.support-links a{flex:1;padding:10px 9px;font-size:10px;gap:7px}.issue-link{margin-top:16px}.footer{margin-top:20px}}
+
+/* Longer English labels and the language control must fit narrow screens. */
+.lang-switch{white-space:nowrap;min-width:52px}
+html[lang="en"] .hero .mobile-break{display:block}
+html[lang="en"] .hero h1{font-size:clamp(25px,2.7vw,36px);letter-spacing:-1px}
+html[lang="en"] .film{height:158px}
+html[lang="en"] .community-copy{min-width:0}
+@media(max-width:720px){
+  .topbar{height:auto;min-height:60px;flex-wrap:wrap;gap:8px;padding:12px}
+  .top-right{margin-left:auto;flex-wrap:wrap}
+  .top-right .ghost{padding:6px 8px;font-size:11px}
+  html[lang="en"] .pane-title{font-size:11px;gap:5px}
+  html[lang="en"] .task-tabs button{font-size:11px;white-space:normal}
+  html[lang="en"] .film{height:130px}
+  html[lang="en"] .film .cap{font-size:10px;line-height:1.35}
+  html[lang="en"] .community h2{font-size:21px}
+  html[lang="en"] .pane-hd{padding-left:10px;padding-right:10px}
+}
