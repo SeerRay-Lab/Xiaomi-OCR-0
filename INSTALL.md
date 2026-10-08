@@ -1,7 +1,8 @@
 # Local installation
 
-Xiaomi-OCR-0 runs on the user's machine. Download the `SeerRay-Lab/Xiaomi-OCR-0`
-Hugging Face checkpoint and serve it with a compatible local SGLang or vLLM installation.
+Xiaomi-OCR-0 runs on the user's machine. Choose a local inference runtime:
+SGLang or vLLM with the `SeerRay-Lab/Xiaomi-OCR-0` Hugging Face checkpoint,
+or Ollama with the experimental `longwayxu/xiaomi-ocr-0:bf16` community package.
 The MCP service connects only to the loopback listener on that machine. There is no
 hosted OCR service in this workflow.
 
@@ -10,12 +11,16 @@ and otherwise checks `python3.13` through `python3.10`; set `PYTHON_BIN` to choo
 
 ## 1. Check for existing local components
 
-Before installing anything, check whether a compatible SGLang/vLLM server, model checkpoint,
+Before installing anything, check whether a compatible SGLang/vLLM/Ollama server, model checkpoint,
 MCP environment, or agent configuration already exists. Reuse compatible installations.
-The setup does not choose a runtime on the user's behalf. Do not install SGLang/vLLM or
+The setup does not choose a runtime on the user's behalf. Do not install SGLang/vLLM/Ollama or
 download model/layout weights without the user's choice and authorization.
 
 ## 2. Start the model locally
+
+Choose **one** of the following runtime paths.
+
+### SGLang / vLLM
 
 If the user chooses to install a runtime, use a build with Qwen3.5 multimodal support for
 their GPU and driver. Explain which environment and model files will be downloaded first.
@@ -43,12 +48,43 @@ The checkpoint is a multimodal `Qwen3_5ForConditionalGeneration` model. Confirm 
 startup completes and the runtime accepts image inputs before configuring MCP. Keep the
 listener bound to `127.0.0.1`.
 
-## 3. Install the MCP package
+### Ollama (experimental)
+
+Install [Ollama](https://ollama.com/download) and keep its local service running
+through the desktop app or `ollama serve`. With model-download authorization, pull
+the community BF16 package, which includes the language model and vision projector
+(about 1.8 GB):
 
 ```bash
-cd skills/xiaomi-ocr
-bash install.sh --agent=codex
+ollama pull longwayxu/xiaomi-ocr-0:bf16
 ```
+
+Use `http://127.0.0.1:11434/v1` as the MCP inference URL and
+`longwayxu/xiaomi-ocr-0:bf16` as the model name. Keep the service on loopback.
+See [OLLAMA.md](OLLAMA.md) for conversion details and experimental validation notes.
+
+## 3. Install the MCP package
+
+Run the command for your selected runtime from the repository root.
+
+For **SGLang / vLLM**:
+
+```bash
+XIAOMI_OCR_LOCAL_URL=http://127.0.0.1:8000/v1 \
+XIAOMI_OCR_MODEL=SeerRay-Lab/Xiaomi-OCR-0 \
+bash skills/xiaomi-ocr/install.sh --agent=codex
+```
+
+For **Ollama**:
+
+```bash
+XIAOMI_OCR_LOCAL_URL=http://127.0.0.1:11434/v1 \
+XIAOMI_OCR_MODEL=longwayxu/xiaomi-ocr-0:bf16 \
+bash skills/xiaomi-ocr/install.sh --agent=codex
+```
+
+The installer saves the URL and model in the MCP configuration. Pass both explicitly:
+the current installer does not use `XIAOMI_OCR_BACKEND` to select the URL or model.
 
 After the user authorizes this step, the installer creates a private Python environment,
 installs the packages in `skills/xiaomi-ocr/requirements.txt`, and writes `mcp-config.json`. With `--agent=codex` it also registers the

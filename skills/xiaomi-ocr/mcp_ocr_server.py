@@ -175,10 +175,16 @@ def _crop(image, box: list[float], polygon=None) -> bytes:
 
 
 def assemble_regions(regions: list[dict], texts: list[str]) -> str:
+    """Use the two-stage pipeline's table conversion and full page assembly."""
     rows = []
     for region, text in zip(regions, texts):
         if region.get("task_type") == "table":
-            text = convert_otsl_to_html(text)
+            # Match twostage_img2md.store_result: preserve the raw table if
+            # conversion fails, then continue assembling the rest of the page.
+            try:
+                text = convert_otsl_to_html(text)
+            except Exception:
+                pass
         rows.append({**region, "merged": text})
     return merge_page_to_markdown(rows)
 

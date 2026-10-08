@@ -7,17 +7,26 @@
   <a href="https://arxiv.org/abs/2609.36136"><img src="https://img.shields.io/badge/arXiv-2609.36136-b31b1b.svg" alt="arXiv:2609.36136"></a>
   <a href="https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/Project-Page-FF6900?logo=huggingface&amp;logoColor=FFD21E" alt="Project Page"></a>
   <a href="https://github.com/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/GitHub-SeerRay--Lab%2FXiaomi--OCR--0-181717?logo=github" alt="GitHub"></a>
+  <a href="https://ollama.com/longwayxu/xiaomi-ocr-0:bf16"><img src="https://img.shields.io/badge/Ollama-BF16%20%28experimental%29-000000?logo=ollama&amp;logoColor=white" alt="Ollama BF16 (experimental)"></a>
+  <a href="https://www.modelscope.cn/models/SeerRay-Lab/Xiaomi-OCR-0"><img src="https://img.shields.io/badge/ModelScope-Model-624AFF?logo=ModelScope&amp;logoColor=white" alt="ModelScope Model"></a>
 </p>
 </div>
 
 Xiaomi-OCR-0 is a unified 0.8B vision-language model for document parsing and OCR-centric understanding. Starting from Qwen3.5-0.8B, it is trained on an approximately 170M-sample OCR-centric corpus with Q-Mask text anchoring, continued pretraining (CPT), and mixed-task reinforcement learning (Mix-RL).
 
-## Get the repository
+## 🏆 Benchmark highlights
 
-```bash
-git clone https://github.com/SeerRay-Lab/Xiaomi-OCR-0.git
-cd Xiaomi-OCR-0
-```
+- 🥇 **95.24** on Real5-OmniDocBench, ranked **#1** in the comparison on this page.
+- 🥈 **96.83** on OmniDocBench v1.6 and **87.94** on Wild-OmniDocBench, both ranked **#2** in the comparisons on this page.
+- 📐 **97.84** on UniMER-Test (formula recognition) and **92.27 TEDS** on PubTabNet (table recognition).
+- ✍️ **0.73** on Chronicles-OCR Mature Scripts (Clerical, Cursive, Running, and Regular scripts).
+- 🧠 Mean score of **83.2** across five OCR-centric VQA benchmarks, exceeding Qwen3.5-2B (**80.9**) with **0.8B** parameters.
+
+Ranks refer to the selected comparisons in this README; see [Key Performance](#key-performance) for the comparison tables and scope.
+
+## 📰 News
+
+- **2026-10-08:** Thank you to the community for supporting Xiaomi-OCR-0 and sharing new formats: [prithivMLmods’ GGUF](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF), [xzl01’s GGUF](https://github.com/xzl01/Xiaomi-OCR-0-GGUF), and [ByronLeeee’s BF16 NInfer conversion](https://huggingface.co/ByronLeeee/Xiaomi-OCR-0-Ninfer).
 
 ## What it does
 
@@ -29,11 +38,32 @@ cd Xiaomi-OCR-0
 
 For printed, regular documents, region parsing can detect and process regions concurrently. For scene text, handwriting, calligraphy, historical books, and irregular layouts, use whole-page parsing because incorrect region boundaries can lose context.
 
-## Try it with an agent
+## Repository contents
 
-> ⚠️ **Notice:** With your authorization, this Skill may create a Python environment, install dependencies, download model weights, install and configure SGLang or vLLM, and register an MCP server. Model and layout downloads can be large. If you do not agree to this setup flow, do not execute the command below.
+| Path | Contents |
+|:--|:--|
+| [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill and MCP service for OCR, PDF parsing, KIE, and VQA |
+| [`demo/`](demo/) | Local browser demo and sample cases |
+| [`example_pics/`](example_pics/) | Example inputs, reference Markdown, and demo animations mirrored from the Hugging Face model repository |
+| [`pipeline/`](pipeline/) | Whole-page and region batch inference |
+| [`postprocess/`](postprocess/) | Shared table conversion, formula/text assembly and repetition handling |
+| [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
+| [ModelScope model](https://www.modelscope.cn/models/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
+| [Hugging Face Space](https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0/tree/main) | Space assets and project-page source |
+| [`examples/`](examples/) | MCP configuration example |
 
-copy and send to your agent:
+## Installation
+
+Choose one of two setup paths:
+
+- [Try it with an agent](#try-it-with-an-agent): let your agent install the local model and configure the MCP service.
+- [Manual installation](#manual-installation): get the code, choose an inference runtime, and run the browser demo yourself.
+
+### Try it with an agent
+
+> ⚠️ **Notice:** With your authorization, this Skill may create a Python environment, install dependencies, download model weights, install and configure the selected inference runtime (SGLang, vLLM, or Ollama), and register an MCP server. Model and layout downloads can be large. If you do not agree to this setup flow, do not execute the command below.
+
+Copy and send this to your agent:
 
 ```text
 Read and execute https://raw.githubusercontent.com/SeerRay-Lab/Xiaomi-OCR-0/main/SKILL.md
@@ -44,21 +74,33 @@ region-mode dependencies (PaddlePaddle, PaddleX and PP-DocLayoutV3) under your s
 authorization and verifies region parsing. You can request page-only setup. If your
 platform does not support the layout runtime, the agent will explain the limitation.
 
-## Run the browser demo
+### Manual installation
+
+Python 3.10 or newer is required. Get the repository first, then choose **one** runtime: [SGLang / vLLM](#sglang--vllm) or [Ollama](#ollama-experimental). To use region parsing, also install the [optional layout dependencies](#optional-region-mode-dependencies).
+
+For manual MCP setup, see [INSTALL.md](INSTALL.md); Ollama-specific setup is covered in [OLLAMA.md](OLLAMA.md).
+
+#### Get the repository
+
+```bash
+git clone https://github.com/SeerRay-Lab/Xiaomi-OCR-0.git
+cd Xiaomi-OCR-0
+```
+
+#### SGLang / vLLM
 
 You can run the browser demo without installing the Agent Skill or MCP server. The demo sends requests to a local SGLang or vLLM inference server at `http://127.0.0.1:8000/v1`.
-Python 3.10 or newer is required.
 
-### 1. Install an inference runtime
+##### 1. Install an inference runtime
 
-If you already have a compatible local server, skip to step 2. Otherwise, choose **one** runtime and follow its installation guide for your operating system, GPU, and driver. These runtimes have hardware-specific requirements; the linked guides list supported platforms and installation options:
+If a compatible local server is already running at the address above, skip to step 3. Otherwise, choose **one** runtime and follow its installation guide for your operating system, GPU, and driver. These runtimes have hardware-specific requirements; the linked guides list supported platforms and installation options:
 
 - [SGLang installation guide](https://docs.sglang.ai/get_started/install.html) · [supported models](https://docs.sglang.io/docs/supported-models/multimodal_language_models.md)
 - [vLLM GPU installation guide](https://docs.vllm.ai/en/latest/getting_started/installation/gpu/) · [Qwen3.5 model support](https://docs.vllm.ai/en/latest/api/vllm/model_executor/models/qwen3_5/)
 
 Use a release that supports the checkpoint architecture `Qwen3_5ForConditionalGeneration`. For macOS and non-NVIDIA hardware, check the runtime's platform-specific support before installing; the default commands below are for a compatible GPU installation.
 
-### 2. Start Xiaomi-OCR-0
+##### 2. Start Xiaomi-OCR-0
 
 Run **one** of the following commands in a terminal. On first launch, the runtime downloads the checkpoint from Hugging Face if it is not already cached. Keep this terminal open while using the demo.
 
@@ -78,7 +120,7 @@ vllm serve SeerRay-Lab/Xiaomi-OCR-0 \
 
 Wait for the server to finish loading the model before continuing.
 
-### 3. Start the browser demo
+##### 3. Start the browser demo
 
 Open a second terminal in the repository directory and run:
 
@@ -91,7 +133,33 @@ python demo/server.py --port 8787
 
 Open <http://127.0.0.1:8787>. The interface supports English and Chinese; switch in the header or open <http://127.0.0.1:8787/?lang=en> for English. The same browser page supports whole-page/region document parsing, KIE, VQA, and PDF parsing. Install the shared requirements above, including Pillow and `pypdfium2` for images and PDFs. Region mode optionally needs PaddlePaddle/PaddleX and PP-DocLayoutV3 weights. See [demo/README.md](demo/README.md) for dependencies and [INSTALL.md](INSTALL.md) for MCP setup.
 
-### 4. Region-mode dependencies (manual installation)
+#### Ollama (experimental)
+
+The [community BF16 GGUF package](https://ollama.com/longwayxu/xiaomi-ocr-0:bf16) includes the text model and vision projector (about 1.8 GB). Install [Ollama](https://ollama.com/download) and keep its local service running, then pull the model:
+
+```bash
+ollama pull longwayxu/xiaomi-ocr-0:bf16
+```
+
+Use the repository's **MCP service or browser Demo** for OCR. They automatically apply the image preprocessing, non-thinking prompt and decoding settings used in our alignment checks; pulling the model alone does not configure these steps. No additional wrapper script is needed when using these integrations.
+
+For the browser Demo, run from the repository root with Python 3.10+:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+export XIAOMI_OCR_BACKEND=ollama
+export XIAOMI_OCR_MODEL=longwayxu/xiaomi-ocr-0:bf16
+export XIAOMI_OCR_LOCAL_URL=http://127.0.0.1:11434/v1
+python demo/server.py --port 8787
+```
+
+Open <http://127.0.0.1:8787>. Whole-page OCR, PDF parsing, KIE and VQA share the existing pipeline. Region mode additionally requires the layout dependencies described below. See [Ollama setup and validation notes](OLLAMA.md) for direct MCP installation and conversion details.
+
+**Validation scope:** on Apple Silicon with Ollama 0.35.0, all 7 sample input token counts matched the HF BF16 reference; 5 of 7 raw responses matched exactly, with formula differences in the other two. These checks do not establish general accuracy parity or validate the benchmark scores below for Ollama.
+
+#### Optional: region-mode dependencies
 
 Region mode additionally needs PaddlePaddle, PaddleX and PP-DocLayoutV3. In the Python
 environment that runs the Demo or MCP server, follow the official
@@ -109,22 +177,19 @@ official guide. PP-DocLayoutV3 weights download on first use if not cached. For 
 set `XIAOMI_OCR_LAYOUT_DEVICE=cpu` in the Demo or MCP environment. Whole-page OCR, KIE and
 VQA work without these extra dependencies.
 
-## Repository contents
+## Community model conversions
 
-| Path | Contents |
-|:--|:--|
-| [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill and MCP service for OCR, PDF parsing, KIE, and VQA |
-| [`demo/`](demo/) | Local browser demo and sample cases |
-| [`example_pics/`](example_pics/) | Example inputs, reference Markdown, and demo animations mirrored from the Hugging Face model repository |
-| [`pipeline/`](pipeline/) | Whole-page and region batch inference |
-| [`postprocess/`](postprocess/) | Shared table conversion, formula/text assembly and repetition handling |
-| [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
-| [Hugging Face Space](https://huggingface.co/spaces/SeerRay-Lab/Xiaomi-OCR-0/tree/main) | Space assets and project-page source |
-| [`examples/`](examples/) | MCP configuration example |
+### GGUF quantizations
+
+[prithivMLmods/Xiaomi-OCR-0-GGUF](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF) provides `BF16`, `Q3_K_L`, `Q3_K_M`, `Q4_K_M`, `Q4_K_S`, `Q5_K_M`, `Q5_K_S` and `Q6_K` weights. Image inference also requires the repository's `Xiaomi-OCR-0.mmproj-bf16.gguf` vision projector. See the [file list](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF/tree/main) for downloads and sizes. We have not evaluated these community GGUF conversions; the original model's benchmark scores and Ollama alignment checks do not establish their accuracy.
+
+[xzl01/Xiaomi-OCR-0-GGUF](https://github.com/xzl01/Xiaomi-OCR-0-GGUF) also provides Q4_K_M and Q8_0 llama.cpp weights with an F16 vision projector. See the repository for its conversion scripts and measured results.
+
+### NInfer BF16
+
+[ByronLeeee/Xiaomi-OCR-0-Ninfer](https://huggingface.co/ByronLeeee/Xiaomi-OCR-0-Ninfer) provides a BF16 NInfer package with language and vision weights, tokenizer, and image-processing configuration. See its model page for the build guide and contributor-reported runtime and output comparisons. We have not independently reproduced those measurements; they are separate from the benchmark results for the original checkpoint above.
 
 ## Key Performance
-
-The comparisons below summarize selected results. Arrows indicate the preferred direction; bold marks Xiaomi-OCR-0 and does not necessarily indicate the best result in a column. See the [Hugging Face model card](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) for benchmark notes and additional results.
 
 ![Parameter efficiency on OmniDocBench v1.6](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0/resolve/main/assets/omni-parameters.png)
 

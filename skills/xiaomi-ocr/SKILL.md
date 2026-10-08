@@ -7,23 +7,64 @@ description: Run Xiaomi-OCR-0 locally through MCP to parse document images and P
 
 Use this Skill when a task needs OCR, document parsing, KIE, or OCR-VQA. Inference runs
 on the user's machine with the Hugging Face checkpoint `SeerRay-Lab/Xiaomi-OCR-0` and
-SGLang or vLLM. The MCP service owns prompts, image/PDF preparation, optional layout
+SGLang, vLLM, or the experimental Ollama backend. The MCP service owns prompts, image/PDF preparation, optional layout
 segmentation, crop processing, concurrency, and output formatting. Call the task tool;
 do not recreate these steps with separate tools or direct model requests.
 
 ## Set up local inference
 
-1. Inspect the host for a running compatible endpoint, an installed SGLang/vLLM runtime, and
-   a cached `SeerRay-Lab/Xiaomi-OCR-0` checkpoint. Reuse compatible installations and
-   weights. Do not install a runtime or download model weights without the user's choice and
-   authorization. If setup would create an environment or download files, state what and how
-   much will be downloaded before asking to proceed.
-2. If the user chooses a runtime that is not installed, check the machine's GPU, driver,
-   CUDA/PyTorch environment, and available memory. Follow that runtime's current official
-   installation guide; Qwen3.5 model support and image handling require a build that supports
-   `Qwen3_5ForConditionalGeneration`. Do not replace another installed runtime by default.
-3. Once the user chooses to serve the model, bind it only to loopback. Example commands
-   (adjust tensor parallelism and memory limits to the user's hardware):
+### Choose the inference backend
+
+Respect an explicit backend/model preference and the user's accuracy requirements. Otherwise:
+
+- **Existing local service:** reuse a working Xiaomi-OCR-0 endpoint and its configured
+  backend/model. Inspect MCP configuration, the running service, and its model list;
+  an OpenAI-compatible URL alone does not identify the runtime. Keep a working backend
+  unless it conflicts with the user's requirements.
+- **Supported GPU environment:** prefer SGLang or vLLM with the original
+  `SeerRay-Lab/Xiaomi-OCR-0` checkpoint, especially for accuracy-sensitive work. Reuse a
+  compatible installed runtime and cached weights. For a fresh setup, check current
+  official runtime support for the host and `Qwen3_5ForConditionalGeneration`; choose
+  vLLM when supported, or SGLang when it is the compatible option.
+- **Desktop/local setup where SGLang/vLLM is unavailable or unsuitable:** use a
+  Qwen3.5-compatible Ollama if the host has enough memory for the BF16 model. This is
+  the convenient local route, including compatible macOS setups. Read
+  [the Ollama setup notes](../../OLLAMA.md) from the complete repository. Use
+  `longwayxu/xiaomi-ocr-0:bf16` by default; reuse it if present, otherwise pull it under
+  the user's setup/download authorization. Do not silently substitute a quantized tag.
+
+Ollama remains experimental: explain the documented formula differences when selecting
+it. BF16 weights do not establish HF output parity. If the user requires HF-equivalent
+results, prefer the original checkpoint through SGLang/vLLM; if that route is unavailable,
+explain the constraint and resolve the accuracy tradeoff with the user before choosing
+Ollama. Do not promise numerical equivalence from any backend name alone.
+
+Set all three variables before running the MCP installer so values from a previous
+backend are not accidentally retained:
+
+| Service | `XIAOMI_OCR_BACKEND` | `XIAOMI_OCR_LOCAL_URL` (default) | `XIAOMI_OCR_MODEL` (default) |
+| --- | --- | --- | --- |
+| SGLang / vLLM | `openai` | `http://127.0.0.1:8000/v1` | `SeerRay-Lab/Xiaomi-OCR-0` |
+| Ollama | `ollama` | `http://127.0.0.1:11434/v1` | `longwayxu/xiaomi-ocr-0:bf16` |
+
+For an existing service, use its actual loopback port and served model name. The installer
+persists these values in MCP configuration. Keep image preparation and task prompts
+inside this MCP service, including for Ollama.
+
+### Install and connect
+
+1. Inspect existing services, runtime installations, cached weights, and available memory;
+   select the backend using the rules above. Explain the selected route and any needed
+   environment creation or downloads. Use existing setup authorization when it covers
+   these changes; ask only for missing authorization or an unresolved compatibility/accuracy
+   choice. The user does not need to select a runtime just to start installation.
+2. If the selected runtime is missing, check the OS, GPU, driver and relevant CUDA/PyTorch
+   environment against its current official installation guide. For SGLang/vLLM, require
+   support for `Qwen3_5ForConditionalGeneration`. For Ollama, follow the linked setup notes.
+   Reuse compatible installations instead of replacing another runtime by default.
+3. Start the selected service bound to loopback. For Ollama, follow the linked notes and
+   use the model tag above. For SGLang/vLLM, examples are below (adjust tensor parallelism
+   and memory limits to the hardware):
 
    ```bash
    python -m sglang.launch_server \
@@ -37,9 +78,10 @@ do not recreate these steps with separate tools or direct model requests.
      --trust-remote-code --max-model-len 16384
    ```
 
-   If the selected engine cannot load the checkpoint or accept image inputs, consult its
-   current Qwen3.5 compatibility notes and ask before upgrading. Do not switch to a hosted
-   inference endpoint.
+   If the engine cannot load the model or accept images, consult its current compatibility
+   notes. Obtain authorization for upgrades if existing setup authorization does not cover
+   them. Do not switch to a hosted endpoint. After connecting MCP, verify a real image
+   request before reporting inference ready.
 4. Reuse or clone the complete GitHub repository. The MCP imports its shared `pipeline/`
    and `postprocess/` modules. Run the installer in `skills/xiaomi-ocr/` in that checkout
    (`bash install.sh --agent=codex` for Codex, `bash install.sh` for other agents).
@@ -104,8 +146,8 @@ Keep the model's reading order and Markdown. Do not fill in unreadable content; 
 model's uncertainty. Table conversion and document assembly happen inside MCP. Do not ask the agent to invoke a separate postprocessor. For KIE, preserve
 JSON keys and values; for VQA, return the concise answer without adding unsupported detail.
 
-If MCP reports that the local model is unavailable, ask which runtime/model setup the user
-wants before installing or downloading anything. If region mode reports missing
+If MCP reports that the local model is unavailable, inspect the configured service first,
+then follow the backend selection and setup authorization rules above. If region mode reports missing
 PaddleX/PaddlePaddle, explain the extra packages and possible layout-weight download, then
 use existing authorization or ask if it does not cover the installation; whole-page mode
 remains available in the meantime.
