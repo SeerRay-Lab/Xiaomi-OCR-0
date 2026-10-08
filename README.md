@@ -19,14 +19,15 @@ Xiaomi-OCR-0 is a unified 0.8B vision-language model for document parsing and OC
 - 🥇 **95.24** on Real5-OmniDocBench, ranked **#1** in the comparison on this page.
 - 🥈 **96.83** on OmniDocBench v1.6 and **87.94** on Wild-OmniDocBench, both ranked **#2** in the comparisons on this page.
 - 📐 **97.84** on UniMER-Test (formula recognition) and **92.27 TEDS** on PubTabNet (table recognition).
-- ✍️ **0.73** on Chronicles-OCR Mature Scripts (Clerical, Cursive, Running, and Regular scripts).
+- ✍️ Historical handwriting and calligraphy: **73** on Chronicles-OCR Mature Scripts (Clerical, Cursive, Running, and Regular scripts), on par with Seed 2.0 Pro(72).
 - 🧠 Mean score of **83.2** across five OCR-centric VQA benchmarks, exceeding Qwen3.5-2B (**80.9**) with **0.8B** parameters.
 
 Ranks refer to the selected comparisons in this README; see [Key Performance](#key-performance) for the comparison tables and scope.
 
 ## 📰 News
 
-- **2026-10-08:** Thank you to the community for supporting Xiaomi-OCR-0 and sharing new formats: [prithivMLmods’ GGUF](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF), [xzl01’s GGUF](https://github.com/xzl01/Xiaomi-OCR-0-GGUF), and [ByronLeeee’s BF16 NInfer conversion](https://huggingface.co/ByronLeeee/Xiaomi-OCR-0-Ninfer).
+- **2026-10-08:** Thanks to the community for supporting Xiaomi-OCR-0 and sharing new formats: [prithivMLmods’ GGUF](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF), [xzl01’s GGUF](https://github.com/xzl01/Xiaomi-OCR-0-GGUF), and [ByronLeeee’s BF16 NInfer conversion](https://huggingface.co/ByronLeeee/Xiaomi-OCR-0-Ninfer).
+- **2026-09-30:** Technical report published and model weights released.
 
 ## What it does
 

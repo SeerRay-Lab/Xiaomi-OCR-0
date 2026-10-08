@@ -18,12 +18,13 @@ Xiaomi-OCR-0 是一个统一的 0.8B 视觉语言模型，面向文档解析与 
 - 🥇 Real5-OmniDocBench 得分 **95.24**，排名 **第 1**。
 - 🥈 OmniDocBench v1.6 得分 **96.83**，Wild-OmniDocBench 得分 **87.94**，两项均排名 **第 2**。
 - 📐 UniMER-Test (公式识别) 得分 **97.84**，PubTabNet（表格识别） 得分 **92.27** 。
-- ✍️ Chronicles-OCR Mature Scripts（隶书、草书、行书、楷书） 得分 **0.73**。
+- ✍️ 历史手写与书法：Chronicles-OCR Mature Scripts（隶书、草书、行书、楷书）得分 **73**，与 Seed 2.0 Pro（72）能力相当。
 - 🧠 五项 OCR 中心 VQA 基准平均分 **83.2**，以 **0.8B** 参数超过 Qwen3.5-2B(**80.9)**。
 
 ## 📰 更新日志
 
 - **2026-10-08：** 感谢社区对 Xiaomi-OCR-0 的支持与贡献：[prithivMLmods 的 GGUF 版本](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF)、[xzl01 的 GGUF 版本](https://github.com/xzl01/Xiaomi-OCR-0-GGUF)，以及 [ByronLeeee 的 BF16 NInfer 转换版](https://huggingface.co/ByronLeeee/Xiaomi-OCR-0-Ninfer)。
+- **2026-09-30：** 技术报告发布、模型权重开源。
 
 ## 能力
 
