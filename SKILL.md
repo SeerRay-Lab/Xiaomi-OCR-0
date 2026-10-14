@@ -27,7 +27,7 @@ Choose the service from the existing setup, hardware, and accuracy requirements;
 does not need to name a backend or model in the installation prompt. Apply the selected
 backend's environment variables before running the installer.
 
-The runtime imports shared `pipeline/` and `postprocess/` modules from the full repository.
+The runtime imports shared `evaluation_pipeline/` and `postprocess/` modules from the full repository.
 Reuse a complete checkout or clone `https://github.com/SeerRay-Lab/Xiaomi-OCR-0.git`
 into a user-owned code directory. Run `skills/xiaomi-ocr/install.sh` from that checkout;
 do not run a detached Skill copy without setting `XIAOMI_OCR_REPO` to the checkout.

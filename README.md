@@ -22,7 +22,9 @@ Xiaomi-OCR-0 is a unified 0.8B vision-language model for document parsing and OC
 - ✍️ Historical handwriting and calligraphy: **73** on Chronicles-OCR Mature Scripts (Clerical, Cursive, Running, and Regular scripts), on par with Seed 2.0 Pro(72).
 - 🧠 Mean score of **83.2** across five OCR-centric VQA benchmarks, exceeding Qwen3.5-2B (**80.9**) with **0.8B** parameters.
 
-Ranks refer to the selected comparisons in this README; see [Key Performance](#key-performance) for the comparison tables and scope.
+The document parsing benchmark results above (Real5-OmniDocBench, OmniDocBench v1.6, and Wild-OmniDocBench) all use the two-stage method. See [evaluation_pipeline](evaluation_pipeline/README.md) for the evaluation procedure.
+
+see [Key Performance](#key-performance) for the comparison tables and scope.
 
 ## 📰 News
 
@@ -46,7 +48,7 @@ For printed, regular documents, region parsing can detect and process regions co
 | [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill and MCP service for OCR, PDF parsing, KIE, and VQA |
 | [`demo/`](demo/) | Local browser demo and sample cases |
 | [`example_pics/`](example_pics/) | Example inputs, reference Markdown, and demo animations mirrored from the Hugging Face model repository |
-| [`pipeline/`](pipeline/) | Whole-page and region batch inference |
+| [`evaluation_pipeline/`](evaluation_pipeline/) | Reproducible e2e / two-stage inference and evaluation |
 | [`postprocess/`](postprocess/) | Shared table conversion, formula/text assembly and repetition handling |
 | [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
 | [ModelScope model](https://www.modelscope.cn/models/SeerRay-Lab/Xiaomi-OCR-0) | Model card, examples, and benchmark assets |
@@ -224,6 +226,13 @@ All three columns report Overall scores.
 | MiniCPM-V-4.5 | 8B | 84.9 | 69.6 | 87.4 | 89.0 | 82.2 | 82.6 |
 
 Mean is the arithmetic average of the five benchmarks on a 0–100 scale.
+
+## Reproduce the evaluation
+
+See the [evaluation guide](evaluation_pipeline/README.md) for e2e inference, vLLM
+parameters, PaddleX PP-DocLayoutV3 layout at threshold 0.25 for two-stage inference,
+and scoring with the OmniDocBench evaluation Docker image. We publish the
+[exact evaluation configuration](evaluation_pipeline/configs/end2end.yaml) used in our runs.
 
 ## Citation
 

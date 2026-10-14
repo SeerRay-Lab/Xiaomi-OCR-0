@@ -142,7 +142,7 @@ for optional offline conversion; it is not a required agent step.
 
 ## Batch evaluation
 
-The restored [pipeline commands](pipeline/README.md) and [postprocessing modules](postprocess/README.md) share the document assembly used by MCP and the Demo. Install `requirements.txt` for batch inference.
+The restored [pipeline commands](evaluation_pipeline/README.md) and [postprocessing modules](postprocess/README.md) share the document assembly used by MCP and the Demo. Install `requirements.txt` for batch inference.
 
 ### Output budget and existing Codex entries
 

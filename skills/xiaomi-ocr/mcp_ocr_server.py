@@ -128,7 +128,7 @@ def _read_bytes(path: str | None, url: str | None, b64: str | None, kind: str) -
 def _image_png(raw: bytes) -> bytes:
     try:
         from PIL import Image
-        from pipeline.cropping import fit_image
+        from evaluation_pipeline.cropping import fit_image
         image = Image.open(io.BytesIO(raw)).convert("RGB")
         fit_image(image)
         out = io.BytesIO()
@@ -146,7 +146,7 @@ def _layout_regions(png: bytes) -> list[dict]:
         from PIL import Image
     except ImportError as exc:
         raise RuntimeError("Region mode needs PaddleX/PaddlePaddle installed in this environment; install the PP-DocLayoutV3 runtime described in the Skill.") from exc
-    from pipeline.layout_detect_paddlex import serialize_regions
+    from evaluation_pipeline.layout_detect_paddlex import serialize_regions
     img = Image.open(io.BytesIO(png)).convert("RGB")
     global _LAYOUT_MODEL
     with _LAYOUT_LOCK:
@@ -167,7 +167,7 @@ _LAYOUT_LOCK = threading.Lock()
 
 
 def _crop(image, box: list[float], polygon=None) -> bytes:
-    from pipeline.cropping import crop_region
+    from evaluation_pipeline.cropping import crop_region
     crop = crop_region(image, box, polygon=polygon)
     out = io.BytesIO()
     crop.save(out, format="PNG")

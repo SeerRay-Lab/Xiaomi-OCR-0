@@ -9,14 +9,14 @@ MCP postprocessing paths:
 
 - Whole-page OCR (including PDF pages and the region-mode fallback) calls
   `finalize_document`: repeated-tail cleanup → math delimiter normalization →
-  OTSL-to-HTML conversion, matching `pipeline/e2e_img2md.py`.
+  OTSL-to-HTML conversion, matching `evaluation_pipeline/e2e_img2md.py`.
 - Region OCR converts each table from OTSL to HTML, keeping the raw output if
   conversion fails, then calls `region.merge_page_to_markdown`, matching
-  `pipeline/twostage_img2md.py`. Assembly sorts by reading-order index, filters
+  `evaluation_pipeline/twostage_img2md.py`. Assembly sorts by reading-order index, filters
   image/header/footer labels, cleans and formats region content, merges formula
   numbers, joins text blocks, and formats bullet points.
 - MCP layout detection uses PaddleX native postprocessing followed by
-  `pipeline.layout_detect_paddlex.serialize_regions`. The two-stage script's
+  `evaluation_pipeline.layout_detect_paddlex.serialize_regions`. The two-stage script's
   `apply_layout_postprocess` is for its Transformers layout backend and is not
   applied again to PaddleX results.
 

@@ -82,7 +82,7 @@ inside this MCP service, including for Ollama.
    notes. Obtain authorization for upgrades if existing setup authorization does not cover
    them. Do not switch to a hosted endpoint. After connecting MCP, verify a real image
    request before reporting inference ready.
-4. Reuse or clone the complete GitHub repository. The MCP imports its shared `pipeline/`
+4. Reuse or clone the complete GitHub repository. The MCP imports its shared `evaluation_pipeline/`
    and `postprocess/` modules. Run the installer in `skills/xiaomi-ocr/` in that checkout
    (`bash install.sh --agent=codex` for Codex, `bash install.sh` for other agents).
    If using a detached Skill, set `XIAOMI_OCR_REPO` to the complete checkout.

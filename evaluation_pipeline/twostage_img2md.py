@@ -8,12 +8,12 @@ Pipeline:
   Stage 3: merge_page_to_markdown → per-page .md files
 
 Usage:
-    python pipeline/twostage_img2md.py \
+    python -m evaluation_pipeline.twostage_img2md \
         --input-jsonl /path/to/images.jsonl \
         --output_dir /path/to/output \
         --start_server --stop_server
 
-    python pipeline/twostage_img2md.py \
+    python -m evaluation_pipeline.twostage_img2md \
         --input-jsonl /path/to/images.jsonl \
         --layout-jsonl /path/to/layout.jsonl \
         --output_dir /path/to/output \
@@ -426,7 +426,7 @@ def run_layout_detection(images, processor, model, device="cuda:0", threshold=LA
     return all_layouts
 
 
-from pipeline.cropping import crop_region, fit_image
+from evaluation_pipeline.cropping import crop_region, fit_image
 
 
 def encode_image_base64(image, fmt="PNG"):

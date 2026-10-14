@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 
 DEFAULT_MODEL_DIR = None
-DEFAULT_THRESHOLD = 0.3
+DEFAULT_THRESHOLD = 0.25
 DEFAULT_BATCH_SIZE = 8
 REGION_FIELDS = (
     "index",
@@ -55,7 +55,7 @@ def load_jsonl(path: str) -> list[dict[str, Any]]:
             row = json.loads(line)
             images = row.get("images")
             if not isinstance(images, list) or not images:
-                raise ValueError(f"第 {line_number} 行缺少非空 images 列表")
+                raise ValueError(f"Line {line_number} must contain a nonempty images list")
             rows.append(row)
     return rows
 
@@ -211,9 +211,9 @@ def worker_main(
 def parse_gpu_ids(value: str) -> list[int]:
     gpu_ids = [int(item.strip()) for item in value.split(",") if item.strip()]
     if not gpu_ids:
-        raise argparse.ArgumentTypeError("--gpu_ids 不能为空")
+        raise argparse.ArgumentTypeError("--gpu_ids must not be empty")
     if len(gpu_ids) != len(set(gpu_ids)):
-        raise argparse.ArgumentTypeError("--gpu_ids 包含重复 GPU")
+        raise argparse.ArgumentTypeError("--gpu_ids must not contain duplicate GPU IDs")
     return gpu_ids
 
 
@@ -224,17 +224,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input_jsonl", required=True)
     parser.add_argument("--output_jsonl", required=True)
     parser.add_argument("--model_dir", default=DEFAULT_MODEL_DIR)
-    parser.add_argument("--gpu_ids", default="0", help="逗号分隔 GPU，例如 0,1,2,3")
+    parser.add_argument("--gpu_ids", default="0", help="Comma-separated GPU IDs, e.g. 0,1,2,3")
     parser.add_argument("--batch_size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
     parser.add_argument("--flush_every", type=int, default=100)
     args = parser.parse_args()
     if not 0.0 <= args.threshold <= 1.0:
-        parser.error("--threshold 必须在 [0, 1] 范围内")
+        parser.error("--threshold must be in [0, 1]")
     if args.batch_size < 1:
-        parser.error("--batch_size 必须 >= 1")
+        parser.error("--batch_size must be >= 1")
     if args.flush_every < 1:
-        parser.error("--flush_every 必须 >= 1")
+        parser.error("--flush_every must be >= 1")
     try:
         args.gpu_ids = parse_gpu_ids(args.gpu_ids)
     except argparse.ArgumentTypeError as error:

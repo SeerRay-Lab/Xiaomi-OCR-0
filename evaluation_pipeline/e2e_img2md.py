@@ -6,7 +6,7 @@ Input: JSONL with {"images": ["/path/to/img.png"]} per line.
 Output: one .md file per image.
 
 Usage:
-    python pipeline/e2e_img2md.py \
+    python -m evaluation_pipeline.e2e_img2md \
         --input-jsonl /path/to/images.jsonl \
         --output_dir /path/to/output_md \
         --start_server --stop_server
@@ -30,7 +30,7 @@ from pathlib import Path
 from openai import OpenAI
 from PIL import Image
 
-from pipeline.cropping import fit_image
+from evaluation_pipeline.cropping import fit_image
 from postprocess.repetition_guard import analyze_repetition
 
 try:

@@ -21,6 +21,8 @@ Xiaomi-OCR-0 是一个统一的 0.8B 视觉语言模型，面向文档解析与 
 - ✍️ 历史手写与书法：Chronicles-OCR Mature Scripts（隶书、草书、行书、楷书）得分 **73**，与 Seed 2.0 Pro（72）能力相当。
 - 🧠 五项 OCR 中心 VQA 基准平均分 **83.2**，以 **0.8B** 参数超过 Qwen3.5-2B(**80.9)**。
 
+上述文档解析基准（Real5-OmniDocBench、OmniDocBench v1.6 和 Wild-OmniDocBench）均使用两阶段（2stage）方法评测，具体流程见 [evaluation_pipeline](evaluation_pipeline/README_zh.md)。
+
 ## 📰 更新日志
 
 - **2026-10-08：** 感谢社区对 Xiaomi-OCR-0 的支持与贡献：[prithivMLmods 的 GGUF 版本](https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF)、[xzl01 的 GGUF 版本](https://github.com/xzl01/Xiaomi-OCR-0-GGUF)，以及 [ByronLeeee 的 BF16 NInfer 转换版](https://huggingface.co/ByronLeeee/Xiaomi-OCR-0-Ninfer)。
@@ -43,7 +45,7 @@ Xiaomi-OCR-0 是一个统一的 0.8B 视觉语言模型，面向文档解析与 
 | [`skills/xiaomi-ocr/`](skills/xiaomi-ocr/) | Agent Skill 与 MCP 服务，支持 OCR、PDF 解析、KIE 和 VQA |
 | [`demo/`](demo/) | 本地浏览器 Demo 和样例 |
 | [`example_pics/`](example_pics/) | 与 Hugging Face 模型仓库同步的示例输入、参考 Markdown 和演示动画 |
-| [`pipeline/`](pipeline/) | 整页与区域批量推理 |
+| [`evaluation_pipeline/`](evaluation_pipeline/) | 整页 / 两阶段推理与评测复现 |
 | [`postprocess/`](postprocess/) | 表格转换、公式/文本组装与重复内容处理 |
 | [Hugging Face model](https://huggingface.co/SeerRay-Lab/Xiaomi-OCR-0) | huggingface模型卡片、示例和基准图表
 | [Model Scope model](https://www.modelscope.cn/models/SeerRay-Lab/Xiaomi-OCR-0) | modelscope模型卡片、示例和基准图表|
@@ -202,7 +204,11 @@ python -m pip install -r requirements-paddlex.txt
 
 平均分为这五项基准在 0–100 分尺度上的算术平均。
 
-批量推理见 [pipeline/README.md](pipeline/README.md)，公共前后处理见 [postprocess/README.md](postprocess/README.md)。
+## 复现评测
+
+[评测指南](evaluation_pipeline/README_zh.md) 提供 e2e 推理命令、vLLM 超参、两阶段推理和 Docker 评测步骤。两阶段复现使用 **PaddleX 版 PP-DocLayoutV3，阈值 0.25**，生成 layout JSONL 后通过 `--layout-jsonl` 传入；每个阈值都需独立生成。
+
+我们使用的 [end2end.yaml](evaluation_pipeline/configs/end2end.yaml) 已随仓库公开；评测环境来自 `ghcr.io/zeng-weijun/omnidocbench-eval:repro-ubuntu2204`。e2e 和两阶段的逐页 Markdown 使用同一份配置评测。公共前后处理见 [postprocess/README.md](postprocess/README.md)。
 
 ## 引用
 
