@@ -1,15 +1,15 @@
-# Python
+# Python bytecode and virtual environments
 __pycache__/
 *.py[cod]
 .venv/
 **/.venv/
 
-# Local inference artifacts and runtime output
+# Downloaded models and generated demo outputs
 models/
 demo/out/
 
-# Local evaluation outputs
+# Generated evaluation reports
 evaluate_report.json
 
-# Generated machine-specific MCP registration
+# Machine-specific MCP client configuration
 skills/xiaomi-ocr/mcp-config.json
