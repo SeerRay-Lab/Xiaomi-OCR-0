@@ -1,4 +1,5 @@
 <div align="center">
+<p><img src="demo/static/img/xiaomi-logo.svg" alt="小米 Xiaomi" width="88" height="88"></p>
 <h1 align="center">Xiaomi-OCR-0</h1>
 <p><b>0.8B 模型，统一文档解析与 OCR 相关理解。</b></p>
 <p><a href="README.md">English</a> · <b>简体中文</b></p>
